@@ -45,11 +45,11 @@ const EXAM_COLORS: Record<string, string> = {
 
 // --- INITIAL STATE DATA ---
 const initialDailyLogs = [
-  { id: 1, date: '2026-08-28', subject: 'Maths', topic: 'Percentage & Successive Change', hours: 2.5, notes: 'Formula clarity achieved, practiced 30 PYQs.' },
+  { id: 1, date: '2026-08-28', subject: 'Maths', topic: 'Percentage & Successive Change', hours: 2.5, notes: 'Formula clarity achieved, practiced 30 PYQs.' }
 ];
 
 const initialMocks = [
-  { id: 1, date: '2026-08-20', type: 'SSC GD', totalScore: 135, maths: 40, reasoning: 45, lang: 30, ga: 20, correct: 75, incorrect: 25 },
+  { id: 1, date: '2026-08-20', type: 'SSC GD', totalScore: 135, maths: 40, reasoning: 45, lang: 30, ga: 20, correct: 75, incorrect: 25 }
 ];
 
 const initialPyqLogs = [
@@ -57,7 +57,7 @@ const initialPyqLogs = [
 ];
 
 const initialWeakTopics = [
-  { id: 1, subject: 'Maths', topic: 'Compound Interest Installments', count: 6, lastDate: '2026-08-29' },
+  { id: 1, subject: 'Maths', topic: 'Compound Interest Installments', count: 6, lastDate: '2026-08-29' }
 ];
 
 const initialSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean; custom?: boolean }>> = {
@@ -253,7 +253,7 @@ export default function App() {
             <div className="space-y-2.5">
               {['Maths', 'Reasoning', 'Science', 'English', 'Hindi', 'GK'].map(sub => {
                 const hrs = subjectHours[sub] || 0;
-                const pct = (hrs / maxHour) * 100;
+                const pct = maxHour > 0 ? (hrs / maxHour) * 100 : 0;
                 return (
                   <div key={sub} className="flex items-center gap-3">
                     <span className="w-20 text-xs text-slate-400 font-medium truncate">{sub}</span>
@@ -297,19 +297,216 @@ export default function App() {
     );
   };
 
-  // --- TAB RENDERING WRAPPERS ---
-  const tabContent = () => {
-    if (activeTab === 'dashboard') return renderDashboard();
+  const renderDailyLog = () => {
+    const handleAddLog = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      const newLog = {
+        id: Date.now(),
+        date: formData.get('date') as string,
+        subject: formData.get('subject') as string,
+        topic: formData.get('topic') as string,
+        hours: Number(formData.get('hours')),
+        notes: formData.get('notes') as string
+      };
+      setDailyLogs([newLog, ...dailyLogs]);
+      e.currentTarget.reset();
+    };
+
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-        <h2 className="text-2xl font-serif text-slate-300 mb-2">Working Mode Active</h2>
-        <p>This section is operational. Add data from the left menu.</p>
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div><h2 className="text-2xl font-bold text-slate-100 font-serif">Daily Study Log</h2></div>
+        <form onSubmit={handleAddLog} className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div><label className="block text-xs text-slate-400 mb-1">Date</label><input required name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+            <div><label className="block text-xs text-slate-400 mb-1">Subject</label><select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none"><option value="Maths">Maths</option><option value="Reasoning">Reasoning</option><option value="Science">Science</option><option value="English">English</option><option value="Hindi">Hindi</option><option value="GK">GK</option></select></div>
+            <div><label className="block text-xs text-slate-400 mb-1">Topic Name</label><input required name="topic" type="text" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+            <div><label className="block text-xs text-slate-400 mb-1">Hours</label><input required name="hours" type="number" step="0.5" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+          </div>
+          <div><label className="block text-xs text-slate-400 mb-1">Notes</label><textarea name="notes" rows={2} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none"></textarea></div>
+          <div className="flex justify-end"><button type="submit" className="bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 px-6 rounded-lg text-sm">Add Log</button></div>
+        </form>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <table className="w-full text-left text-sm text-slate-300">
+            <thead className="bg-slate-950 text-slate-400 text-xs"><th className="p-4">Date</th><th className="p-4">Subject</th><th className="p-4">Topic</th><th className="p-4">Hours</th><th className="p-4">Notes</th><th className="p-4"></th></thead>
+            <tbody>
+              {dailyLogs.map(log => (
+                <tr key={log.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                  <td className="p-4 font-mono">{log.date}</td>
+                  <td className="p-4"><span className={`px-2 py-1 rounded text-[10px] text-white ${SUBJECT_COLORS[log.subject]}`}>{log.subject}</span></td>
+                  <td className="p-4">{log.topic}</td><td className="p-4 font-mono text-amber-400">{log.hours}h</td><td className="p-4 text-xs">{log.notes}</td>
+                  <td className="p-4 text-right"><button onClick={() => setDailyLogs(dailyLogs.filter(d => d.id !== log.id))} className="text-slate-600 hover:text-rose-400"><Trash2 size={16} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };
 
+  const renderMockTracker = () => {
+    const handleAddMock = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      const newMock = {
+        id: Date.now(), date: formData.get('date') as string, type: formData.get('type') as string,
+        totalScore: Number(formData.get('total')), maths: Number(formData.get('maths')), reasoning: Number(formData.get('reasoning')),
+        lang: Number(formData.get('lang')), ga: Number(formData.get('ga')), correct: Number(formData.get('correct')), incorrect: Number(formData.get('incorrect')),
+      };
+      setMocks([newMock, ...mocks]);
+      e.currentTarget.reset();
+    };
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div><h2 className="text-2xl font-bold text-slate-100 font-serif">Mock Test Tracker</h2></div>
+        <form onSubmit={handleAddMock} className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label className="block text-xs text-slate-400 mb-1">Exam</label><select required name="type" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none"><option value="SSC GD">SSC GD</option><option value="SSC MTS">SSC MTS</option><option value="RRB Group D">RRB Group D</option><option value="SSC CHSL">SSC CHSL</option></select></div>
+            <div><label className="block text-xs text-slate-400 mb-1">Date</label><input required name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+            <div><label className="block text-xs text-slate-400 mb-1">Total Score</label><input required name="total" type="number" step="0.5" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+          </div>
+          <div className="border-t border-slate-800 pt-4 grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div><label className="block text-[10px] text-slate-400 mb-1">Maths</label><input required name="maths" type="number" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm" /></div>
+            <div><label className="block text-[10px] text-slate-400 mb-1">Reas</label><input required name="reasoning" type="number" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm" /></div>
+            <div><label className="block text-[10px] text-slate-400 mb-1">Lang</label><input required name="lang" type="number" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm" /></div>
+            <div><label className="block text-[10px] text-slate-400 mb-1">GA</label><input required name="ga" type="number" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm" /></div>
+            <div><label className="block text-[10px] text-emerald-400 mb-1">Correct</label><input required name="correct" type="number" className="w-full bg-slate-950 border border-emerald-900/60 rounded px-2.5 py-1.5 text-sm text-emerald-400" /></div>
+            <div><label className="block text-[10px] text-rose-400 mb-1">Incorrect</label><input required name="incorrect" type="number" className="w-full bg-slate-950 border border-rose-900/60 rounded px-2.5 py-1.5 text-sm text-rose-400" /></div>
+          </div>
+          <div className="flex justify-end"><button type="submit" className="bg-slate-100 text-slate-950 font-bold py-2 px-6 rounded-lg text-sm">Save Mock</button></div>
+        </form>
+        <div className="space-y-3">
+          {mocks.map(mock => {
+            const accuracy = mock.correct + mock.incorrect > 0 ? ((mock.correct / (mock.correct + mock.incorrect)) * 100).toFixed(1) : '0.0';
+            return (
+              <div key={mock.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex justify-between items-center">
+                <div className="flex items-center gap-4"><span className={`px-2 py-1 rounded text-xs text-white ${EXAM_COLORS[mock.type] || 'bg-slate-600'}`}>{mock.type}</span><div><div className="text-2xl font-mono text-slate-100">{mock.totalScore}</div><div className="text-xs text-slate-500">{mock.date}</div></div></div>
+                <div className="flex items-center gap-4 text-right"><span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded">{accuracy}% Acc</span><button onClick={() => setMocks(mocks.filter(m => m.id !== mock.id))} className="text-slate-600 hover:text-rose-400"><Trash2 size={16} /></button></div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPYQ = () => {
+    const handleAddPyq = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      const newPyq = { id: Date.now(), date: formData.get('date') as string, subject: formData.get('subject') as string, sets: Number(formData.get('sets')), shiftYear: formData.get('shiftYear') as string, notes: formData.get('notes') as string };
+      setPyqLogs([newPyq, ...pyqLogs]); e.currentTarget.reset();
+    };
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div><h2 className="text-2xl font-bold text-slate-100 font-serif">PYQ Practice Log</h2></div>
+        <form onSubmit={handleAddPyq} className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div><input required name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+            <div><select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none"><option value="Maths">Maths</option><option value="Reasoning">Reasoning</option><option value="Science">Science</option><option value="English">English</option><option value="Hindi">Hindi</option><option value="GK">GK</option></select></div>
+            <div><input required name="sets" type="number" min="1" placeholder="Sets Solved" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+            <div><input required name="shiftYear" type="text" placeholder="Shift/Year" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+          </div>
+          <div><input name="notes" type="text" placeholder="Notes..." className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" /></div>
+          <div className="flex justify-end"><button type="submit" className="bg-fuchsia-600 text-white font-semibold py-2 px-6 rounded-lg text-sm">Log PYQ</button></div>
+        </form>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <table className="w-full text-left text-sm text-slate-300">
+            <thead className="bg-slate-950 text-slate-400 text-xs"><th className="p-4">Date</th><th className="p-4">Subject</th><th className="p-4">Sets</th><th className="p-4">Notes</th><th className="p-4"></th></thead>
+            <tbody>
+              {pyqLogs.map(log => (
+                <tr key={log.id} className="border-b border-slate-800/50">
+                  <td className="p-4 font-mono">{log.date}</td><td className="p-4"><span className={`px-2 py-1 rounded text-[10px] text-white ${SUBJECT_COLORS[log.subject]}`}>{log.subject}</span></td>
+                  <td className="p-4 text-fuchsia-400">{log.sets}</td><td className="p-4 text-xs">{log.notes}</td>
+                  <td className="p-4 text-right"><button onClick={() => setPyqLogs(pyqLogs.filter(p => p.id !== log.id))} className="text-slate-600 hover:text-rose-400"><Trash2 size={16} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTimetable = () => (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div><h2 className="text-2xl font-bold text-slate-100 font-serif">Daily Schedule</h2></div>
+      <div className="grid grid-cols-1 gap-4">
+        {[
+          { block: 'Block 1', slot: 'Maths Study Slot' },
+          { block: 'Block 2', slot: 'English / Hindi Grammar Slot' },
+          { block: 'Block 3', slot: 'Reasoning Quiz & Puzzles' },
+          { block: 'Block 4', slot: 'General Science & GK NCERT' },
+        ].map((item, idx) => (
+          <div key={idx} className="bg-slate-900 border border-slate-800 p-5 rounded-xl"><span className="text-amber-500 font-mono text-xs">{item.block}</span><h3 className="text-base text-slate-100">{item.slot}</h3></div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderWeakTopics = () => {
+    const handleAddWeak = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      const subject = formData.get('subject') as string;
+      const topic = (formData.get('topic') as string).trim();
+      const existing = weakTopics.find(w => w.subject === subject && w.topic.toLowerCase() === topic.toLowerCase());
+      if (existing) {
+        setWeakTopics(weakTopics.map(w => w.id === existing.id ? { ...w, count: w.count + 1 } : w));
+      } else {
+        setWeakTopics([...weakTopics, { id: Date.now(), subject, topic, count: 1, lastDate: new Date().toISOString().split('T')[0] }]);
+      }
+      e.currentTarget.reset();
+    };
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div><h2 className="text-2xl font-bold text-slate-100 font-serif">Weak Topics</h2></div>
+        <form onSubmit={handleAddWeak} className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex gap-4">
+          <select required name="subject" className="w-1/4 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none"><option value="Maths">Maths</option><option value="Reasoning">Reasoning</option><option value="English">English</option></select>
+          <input required name="topic" type="text" placeholder="Topic Name" className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none" />
+          <button type="submit" className="bg-rose-600 text-white py-2 px-6 rounded-lg text-sm">Flag</button>
+        </form>
+        <div className="space-y-3">
+          {weakTopics.map(w => (
+            <div key={w.id} className="p-4 rounded-xl border bg-slate-900 border-slate-800 flex justify-between items-center">
+              <div><span className={`px-2 py-0.5 rounded text-[10px] text-white ${SUBJECT_COLORS[w.subject]}`}>{w.subject}</span><h3 className="text-slate-200 mt-1">{w.topic}</h3></div>
+              <div className="flex items-center gap-4"><span className="text-rose-400 font-mono font-bold">{w.count}x</span><button onClick={() => setWeakTopics(weakTopics.filter(item => item.id !== w.id))} className="text-slate-600 hover:text-rose-400"><Trash2 size={16} /></button></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSyllabus = () => (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div><h2 className="text-2xl font-bold text-slate-100 font-serif">Syllabus Checklist</h2></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {Object.entries(syllabus).map(([subject, topics]) => (
+          <div key={subject} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+            <h3 className="font-semibold text-slate-200 mb-4">{subject}</h3>
+            <div className="space-y-2 h-64 overflow-y-auto">
+              {topics.map(topic => (
+                <div key={topic.id} className="flex items-center gap-2" onClick={() => {
+                  setSyllabus({...syllabus, [subject]: syllabus[subject].map(t => t.id === topic.id ? { ...t, completed: !t.completed } : t)});
+                }}>
+                  {topic.completed ? <CheckCircle2 size={16} className="text-emerald-500" /> : <Circle size={16} className="text-slate-600" />}
+                  <span className={`text-sm cursor-pointer ${topic.completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{topic.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-amber-500/30 relative">
+    <div className="flex min-h-screen bg-slate-950 text-slate-300 font-sans relative">
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#12181F] border-b border-slate-800 z-40 flex items-center justify-between px-4">
         <span className="font-serif font-bold text-slate-100 text-xl">Field Log</span>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-400">
@@ -337,7 +534,13 @@ export default function App() {
 
       <main className="flex-1 md:ml-64 pt-16 md:pt-0 min-h-screen">
         <div className="max-w-6xl mx-auto p-4 md:p-10 pb-32">
-          {activeTab === 'dashboard' ? renderDashboard() : <div className="text-center mt-20 text-slate-400 font-mono text-lg">Section "{activeTab}" is Active & Ready.</div>}
+          {activeTab === 'dashboard' && renderDashboard()}
+          {activeTab === 'daily' && renderDailyLog()}
+          {activeTab === 'mocks' && renderMockTracker()}
+          {activeTab === 'pyq' && renderPYQ()}
+          {activeTab === 'timetable' && renderTimetable()}
+          {activeTab === 'weak' && renderWeakTopics()}
+          {activeTab === 'syllabus' && renderSyllabus()}
         </div>
       </main>
       <FloatingTimer />
