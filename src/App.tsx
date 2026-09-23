@@ -458,6 +458,8 @@ export default function App() {
   const [syllabus, setSyllabus] = usePersistentState("syllabus", initialSyllabus);
   const [nextPlan, setNextPlan] = usePersistentState("nextPlan", "Maths CI Installments + Reasoning Circular Puzzle revision + 1 Full Mock Test.");
   const [selectedExam, setSelectedExam] = usePersistentState("selectedExam", "All Exams");
+  const [plannerGoalHours, setPlannerGoalHours] = usePersistentState("plannerGoalHours", 5);
+  const [plannerDone, setPlannerDone] = usePersistentState<Record<string, boolean>>("plannerDone", {});
 
   const navItems = [
     { id: 'dashboard', num: '01', label: 'Dashboard & Analytics', icon: LayoutDashboard },
@@ -467,7 +469,8 @@ export default function App() {
     { id: 'timetable', num: '05', label: 'Interactive Timetable', icon: Calendar },
     { id: 'weak', num: '06', label: 'Weak Topics Tracker', icon: AlertTriangle },
     { id: 'syllabus', num: '07', label: 'Syllabus Checklist', icon: ListChecks },
-    { id: 'ai-bot', num: '08', label: 'AI Study Bot', icon: Bot },
+    { id: 'planner', num: '08', label: 'Smart Study Planner', icon: Target },
+    { id: 'ai-bot', num: '09', label: 'AI Study Bot', icon: Bot },
   ];
 
   const resetAllData = () => {
@@ -477,6 +480,8 @@ export default function App() {
       setPyqLogs([]);
       setWeakTopics([]);
       setNextPlan("");
+      setPlannerGoalHours(5);
+      setPlannerDone({});
       const resetSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean; custom?: boolean }>> = {};
       Object.entries(initialSyllabus).forEach(([key, topics]) => {
         resetSyllabus[key] = topics.map(t => ({ ...t, completed: false }));
@@ -1119,6 +1124,184 @@ export default function App() {
     );
   };
 
+  // --- 5. SMART STUDY PLANNER ---
+  const renderSmartPlanner = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const exam = selectedExam === "All Exams" ? "SSC CHSL" : selectedExam;
+    const subjects = EXAM_SUBJECTS[selectedExam] || EXAM_SUBJECTS["All Exams"];
+
+    const filteredWeak = weakTopics
+      .filter(w => selectedExam === "All Exams" || !w.exam || w.exam === "All Exams" || w.exam === exam)
+      .sort((a, b) => b.count - a.count);
+
+    const incompleteTasks = subjects.flatMap(subject =>
+      (syllabus[subject] || [])
+        .filter(topic => !topic.completed)
+        .slice(0, 2)
+        .map(topic => ({
+          id: `syllabus-${subject}-${topic.id}`,
+          type: "Syllabus",
+          title: topic.name,
+          subtitle: `${subject} • Concept + examples`,
+          priority: 2
+        }))
+    );
+
+    const revisionCandidates = dailyLogs
+      .filter(log => {
+        if (selectedExam !== "All Exams" && log.exam && log.exam !== "All Exams" && log.exam !== exam) return false;
+        const age = (Date.now() - new Date(log.date).getTime()) / 86400000;
+        return age >= 2;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .filter((log, index, arr) => arr.findIndex(item => item.topic.toLowerCase() === log.topic.toLowerCase()) === index)
+      .slice(0, 3)
+      .map(log => ({
+        id: `revision-${log.id}`,
+        type: "Revision",
+        title: log.topic,
+        subtitle: `${log.subject} • Last studied ${log.date}`,
+        priority: 3
+      }));
+
+    const weakTasks = filteredWeak.slice(0, 3).map(topic => ({
+      id: `weak-${topic.id}`,
+      type: "Weak Topic",
+      title: topic.topic,
+      subtitle: `${topic.subject} • ${topic.count} mistakes`,
+      priority: 1
+    }));
+
+    const latestMock = mocks
+      .filter(mock => selectedExam === "All Exams" || mock.type === exam)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+    const mockAge = latestMock ? (Date.now() - new Date(latestMock.date).getTime()) / 86400000 : Infinity;
+    const mockTask = mockAge >= 7 ? [{
+      id: `mock-${exam}`,
+      type: "Mock",
+      title: "1 Full Mock Test",
+      subtitle: latestMock ? `No full mock in ${Math.floor(mockAge)} days` : "No mock logged yet",
+      priority: 2
+    }] : [];
+
+    const tasks = [...weakTasks, ...revisionCandidates, ...incompleteTasks, ...mockTask]
+      .sort((a, b) => a.priority - b.priority)
+      .slice(0, 8);
+
+    const activeTasks = tasks.map(task => ({
+      ...task,
+      key: `${today}:${exam}:${task.id}`
+    }));
+    const completedTasks = activeTasks.filter(task => plannerDone[task.key]).length;
+    const goalHours = Math.max(1, Number(plannerGoalHours) || 5);
+    const todayHours = dailyLogs
+      .filter(log => log.date === today && (selectedExam === "All Exams" || !log.exam || log.exam === "All Exams" || log.exam === exam))
+      .reduce((sum, log) => sum + Number(log.hours), 0);
+    const hourPercent = Math.min(100, Math.round((todayHours / goalHours) * 100));
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div>
+          <div className="flex items-center gap-2 text-amber-500 text-xs uppercase font-bold tracking-widest mb-1">
+            <Sparkles size={14} /> Smart Daily Plan
+          </div>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-100 font-serif">Today’s Study Planner</h2>
+          <p className="text-slate-400 text-sm mt-1">Weak topics, revision due aur incomplete syllabus ko ek daily priority list me lao.</p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Target Exam</label>
+              <select value={selectedExam} onChange={e => setSelectedExam(e.target.value)} className="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
+                {Object.keys(EXAM_SUBJECTS).map(item => <option key={item}>{item}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Daily Study Goal (Hours)</label>
+              <input
+                type="number"
+                min="1"
+                max="16"
+                step="0.5"
+                value={plannerGoalHours}
+                onChange={e => setPlannerGoalHours(Math.min(16, Math.max(1, Number(e.target.value) || 1)))}
+                className="w-full sm:w-40 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+            <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Tasks Done</div>
+            <div className="text-3xl font-mono font-bold text-emerald-400 mt-1">{completedTasks}/{activeTasks.length}</div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+            <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Study Hours</div>
+            <div className="text-3xl font-mono font-bold text-amber-500 mt-1">{todayHours.toFixed(1)}h</div>
+            <div className="text-xs text-slate-500 mt-1">Goal {goalHours.toFixed(1)}h • {hourPercent}%</div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+            <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Next Focus</div>
+            <div className="text-base font-semibold text-slate-200 mt-2 truncate">{activeTasks[0]?.title || "All clear"}</div>
+            <div className="text-xs text-slate-500 mt-1">{activeTasks[0]?.type || "No pending priority"}</div>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm uppercase tracking-wider text-slate-300 font-bold">Priority Queue</h3>
+              <p className="text-xs text-slate-500 mt-1">1 = highest priority • checkbox tick karte jao</p>
+            </div>
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className="text-xs text-amber-500 hover:text-amber-400"
+            >
+              Dashboard →
+            </button>
+          </div>
+
+          {activeTasks.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-500">Aaj ke liye koi urgent task nahi mila. Daily log ya syllabus me next task add karo.</div>
+          ) : (
+            <div className="divide-y divide-slate-800/60">
+              {activeTasks.map((task, index) => {
+                const done = Boolean(plannerDone[task.key]);
+                return (
+                  <button
+                    key={task.key}
+                    onClick={() => setPlannerDone({ ...plannerDone, [task.key]: !done })}
+                    className="w-full text-left p-4 hover:bg-slate-800/40 transition-colors flex items-start gap-3"
+                  >
+                    {done ? <CheckCircle2 size={20} className="text-emerald-500 mt-0.5 flex-shrink-0" /> : <Circle size={20} className="text-slate-600 mt-0.5 flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <div className={`flex flex-wrap items-center gap-2 ${done ? 'opacity-50' : ''}`}>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">#{index + 1}</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-500">{task.type}</span>
+                        <span className={`text-sm font-semibold ${done ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{task.title}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">{task.subtitle}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+          <h3 className="text-sm uppercase tracking-wider text-slate-300 font-bold mb-3">How the plan is decided</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800"><span className="text-rose-400 font-bold">1.</span> Weak Topic → repeat mistakes first</div>
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800"><span className="text-amber-400 font-bold">2.</span> Revision → old topics due for review</div>
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800"><span className="text-sky-400 font-bold">3.</span> Syllabus → incomplete chapters next</div>
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800"><span className="text-emerald-400 font-bold">4.</span> Mock → add a full test when due</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // --- 5. INTERACTIVE TIMETABLE ---
   const renderTimetable = () => {
     return (
@@ -1454,6 +1637,7 @@ export default function App() {
           {activeTab === 'timetable' && renderTimetable()}
           {activeTab === 'weak' && renderWeakTopics()}
           {activeTab === 'syllabus' && renderSyllabus()}
+          {activeTab === 'planner' && renderSmartPlanner()}
           {activeTab === 'ai-bot' && <AIStudyBot />}
         </div>
       </main>
