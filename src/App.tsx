@@ -63,7 +63,7 @@ const EXAM_COLORS: Record<string, string> = {
 
 const EXAM_SUBJECTS: Record<string, string[]> = {
   'All Exams': ['Maths', 'Reasoning', 'Science', 'English', 'Hindi', 'GK', 'Computer'],
-  'SSC CHSL': ['Maths', 'Reasoning', 'English', 'GK'],
+  'SSC CHSL': ['Maths', 'Reasoning', 'English', 'GK', 'Computer'],
   'SSC MTS': ['Maths', 'Reasoning', 'English', 'GK', 'Science'],
   'SSC GD': ['Maths', 'Reasoning', 'English', 'Hindi', 'GK', 'Science'],
   'RRB Group D': ['Maths', 'Reasoning', 'Science', 'GK'],
@@ -71,7 +71,7 @@ const EXAM_SUBJECTS: Record<string, string[]> = {
   'RRB NTPC (12th Level)': ['Maths', 'Reasoning', 'English', 'GK'],
   'AOC JOA (12th Level)': ['Maths', 'Reasoning', 'English', 'GK'],
   '12th-Level Govt Core': ['Maths', 'Reasoning', 'English', 'Hindi', 'GK', 'Science'],
-  'UP Lekhpal': ['Maths', 'Reasoning', 'Hindi', 'GK'],
+  'UP Lekhpal': ['Maths', 'Reasoning', 'Hindi', 'GK', 'Computer'],
   'AOC JOA': ['Maths', 'Reasoning', 'English', 'GK', 'Computer'],
   'RPF': ['Maths', 'Reasoning', 'English', 'GK'],
 };
