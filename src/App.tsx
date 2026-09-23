@@ -628,6 +628,15 @@ export default function App() {
   const [dailyFormExam, setDailyFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
   const [pyqFormExam, setPyqFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
   const [mockFormExam, setMockFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
+  const [weakFormExam, setWeakFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
+
+  useEffect(() => {
+    const nextExam = selectedExam === "All Exams" ? "SSC CHSL" : selectedExam;
+    setDailyFormExam(nextExam);
+    setPyqFormExam(nextExam);
+    setMockFormExam(nextExam);
+    setWeakFormExam(nextExam);
+  }, [selectedExam]);
 
   useEffect(() => {
     const migrationKey = "field-log:v1:exam-migration-1";
@@ -1679,7 +1688,7 @@ export default function App() {
               desc: 'Speed typing practice (for CHSL/NTPC/JOA) + Daily morning current affairs capsule.',
               resources: [
                 { label: 'TypingMaster Live Online', url: 'https://www.typing.com' },
-                { label: 'NextGen Daily CA Tracker', url: '#' }
+                { label: 'NextGen Daily CA Tracker', url: 'https://nextgenacademy1.lovable.app' }
               ]
             }
           ].map((item, idx) => (
@@ -1769,13 +1778,13 @@ export default function App() {
         <form onSubmit={handleAddWeak} className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm flex flex-col md:flex-row gap-4 items-end">
           <div className="w-full md:w-1/4">
             <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam</label>
-            <select required name="exam" defaultValue={selectedExam === "All Exams" ? "SSC CHSL" : selectedExam} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+            <select required name="exam" value={weakFormExam} onChange={e => setWeakFormExam(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
               {Object.keys(EXAM_SUBJECTS).filter(e => e !== "All Exams").map(exam => <option key={exam}>{exam}</option>)}
             </select>
           </div><div className="w-full md:w-1/4">
             <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
             <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
-              {getSubjectsForExam((selectedExam === "All Exams" ? "SSC CHSL" : selectedExam)).map(subject => <option key={subject} value={subject}>{subject}</option>)}
+              {getSubjectsForExam(weakFormExam).map(subject => <option key={subject} value={subject}>{subject}</option>)}
             </select>
           </div>
           <div className="flex-1 w-full">
