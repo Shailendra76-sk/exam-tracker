@@ -160,6 +160,40 @@ const initialSyllabus: Record<string, Array<{ id: string; name: string; complete
   ]
 };
 
+// --- LOCAL PERSISTENCE ---
+
+type PersistentStateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
+
+const STORAGE_PREFIX = "field-log:v1:";
+
+function usePersistentState<T>(key: string, initialValue: T): [T, PersistentStateSetter<T>] {
+  const storageKey = `${STORAGE_PREFIX}${key}`;
+
+  const [state, setState] = useState<T>(() => {
+    if (typeof window === "undefined") return initialValue;
+
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      return stored ? (JSON.parse(stored) as T) : initialValue;
+    } catch (error) {
+      console.warn("Field Log: unable to restore saved data.", error);
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(state));
+    } catch (error) {
+      console.warn("Field Log: unable to save data locally.", error);
+    }
+  }, [storageKey, state]);
+
+  return [state, setState];
+}
+
 // --- FLOATING STUDY TIMER COMPONENT ---
 const FloatingTimer = () => {
   const [time, setTime] = useState(0);
@@ -403,12 +437,12 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // App State
-  const [dailyLogs, setDailyLogs] = useState(initialDailyLogs);
-  const [mocks, setMocks] = useState(initialMocks);
-  const [pyqLogs, setPyqLogs] = useState(initialPyqLogs);
-  const [weakTopics, setWeakTopics] = useState(initialWeakTopics);
-  const [syllabus, setSyllabus] = useState(initialSyllabus);
-  const [nextPlan, setNextPlan] = useState("Maths CI Installments + Reasoning Circular Puzzle revision + 1 Full Mock Test.");
+  const [dailyLogs, setDailyLogs] = usePersistentState("dailyLogs", initialDailyLogs);
+  const [mocks, setMocks] = usePersistentState("mocks", initialMocks);
+  const [pyqLogs, setPyqLogs] = usePersistentState("pyqLogs", initialPyqLogs);
+  const [weakTopics, setWeakTopics] = usePersistentState("weakTopics", initialWeakTopics);
+  const [syllabus, setSyllabus] = usePersistentState("syllabus", initialSyllabus);
+  const [nextPlan, setNextPlan] = usePersistentState("nextPlan", "Maths CI Installments + Reasoning Circular Puzzle revision + 1 Full Mock Test.");
 
   const navItems = [
     { id: 'dashboard', num: '01', label: 'Dashboard & Analytics', icon: LayoutDashboard },
@@ -428,9 +462,9 @@ export default function App() {
       setPyqLogs([]);
       setWeakTopics([]);
       setNextPlan("");
-      const resetSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean }>> = {};
-      Object.keys(syllabus).forEach(key => {
-        resetSyllabus[key] = syllabus[key].map(t => ({ ...t, completed: false }));
+      const resetSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean; custom?: boolean }>> = {};
+      Object.entries(initialSyllabus).forEach(([key, topics]) => {
+        resetSyllabus[key] = topics.map(t => ({ ...t, completed: false }));
       });
       setSyllabus(resetSyllabus);
     }
@@ -662,14 +696,18 @@ export default function App() {
       e.preventDefault();
       const form = e.currentTarget;
       const formData = new FormData(form);
-      const newLog = {
-        id: Date.now(),
-        date: formData.get('date') as string,
-        subject: formData.get('subject') as string,
-        topic: formData.get('topic') as string,
-        hours: Number(formData.get('hours')),
-        notes: formData.get('notes') as string
-      };
+      const date = String(formData.get('date') || '').trim();
+      const subject = String(formData.get('subject') || '').trim();
+      const topic = String(formData.get('topic') || '').trim();
+      const hours = Number(formData.get('hours'));
+      const notes = String(formData.get('notes') || '').trim();
+
+      if (!date || !subject || !topic || topic.length > 120 || !Number.isFinite(hours) || hours < 0.5 || hours > 16) {
+        alert('Please enter valid study details. Topic max 120 characters and hours must be between 0.5 and 16.');
+        return;
+      }
+
+      const newLog = { id: Date.now(), date, subject, topic, hours, notes };
       setDailyLogs([newLog, ...dailyLogs]);
       form.reset();
     };
@@ -700,7 +738,7 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Topic Name</label>
-              <input required name="topic" type="text" placeholder="e.g. Percentage Basics" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500" />
+              <input required name="topic" type="text" placeholder="e.g. Percentage Basics" maxLength={120} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500" />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Hours Studied</label>
@@ -760,18 +798,23 @@ export default function App() {
       e.preventDefault();
       const form = e.currentTarget;
       const formData = new FormData(form);
-      const newMock = {
-        id: Date.now(),
-        date: formData.get('date') as string,
-        type: formData.get('type') as string,
-        totalScore: Number(formData.get('total')),
-        maths: Number(formData.get('maths')),
-        reasoning: Number(formData.get('reasoning')),
-        lang: Number(formData.get('lang')),
-        ga: Number(formData.get('ga')),
-        correct: Number(formData.get('correct')),
-        incorrect: Number(formData.get('incorrect')),
-      };
+      const date = String(formData.get('date') || '').trim();
+      const type = String(formData.get('type') || '').trim();
+      const totalScore = Number(formData.get('total'));
+      const maths = Number(formData.get('maths'));
+      const reasoning = Number(formData.get('reasoning'));
+      const lang = Number(formData.get('lang'));
+      const ga = Number(formData.get('ga'));
+      const correct = Number(formData.get('correct'));
+      const incorrect = Number(formData.get('incorrect'));
+
+      const values = [totalScore, maths, reasoning, lang, ga, correct, incorrect];
+      if (!date || !type || values.some(value => !Number.isFinite(value) || value < 0) || correct + incorrect === 0) {
+        alert('Please enter valid non-negative mock scores and at least one attempted question.');
+        return;
+      }
+
+      const newMock = { id: Date.now(), date, type, totalScore, maths, reasoning, lang, ga, correct, incorrect };
       setMocks([newMock, ...mocks]);
       form.reset();
     };
@@ -802,34 +845,34 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Total Score</label>
-              <input required name="total" type="number" step="0.5" placeholder="e.g. 135" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
+              <input required name="total" type="number" step="0.5" min="0" placeholder="e.g. 135" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
             </div>
           </div>
           
           <div className="border-t border-slate-800 pt-4 grid grid-cols-2 md:grid-cols-6 gap-3">
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Maths</label>
-              <input required name="maths" type="number" placeholder="40" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
+              <input required name="maths" type="number" min="0" placeholder="40" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Reasoning</label>
-              <input required name="reasoning" type="number" placeholder="45" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
+              <input required name="reasoning" type="number" min="0" placeholder="45" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Language</label>
-              <input required name="lang" type="number" placeholder="30" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
+              <input required name="lang" type="number" min="0" placeholder="30" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">GA / GK</label>
-              <input required name="ga" type="number" placeholder="20" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
+              <input required name="ga" type="number" min="0" placeholder="20" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-emerald-400 mb-1">Correct Qs</label>
-              <input required name="correct" type="number" placeholder="75" className="w-full bg-slate-950 border border-emerald-900/60 rounded px-2.5 py-1.5 text-sm text-emerald-400" />
+              <input required name="correct" type="number" min="0" placeholder="75" className="w-full bg-slate-950 border border-emerald-900/60 rounded px-2.5 py-1.5 text-sm text-emerald-400" />
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-rose-400 mb-1">Incorrect Qs</label>
-              <input required name="incorrect" type="number" placeholder="15" className="w-full bg-slate-950 border border-rose-900/60 rounded px-2.5 py-1.5 text-sm text-rose-400" />
+              <input required name="incorrect" type="number" min="0" placeholder="15" className="w-full bg-slate-950 border border-rose-900/60 rounded px-2.5 py-1.5 text-sm text-rose-400" />
             </div>
           </div>
           
@@ -889,14 +932,18 @@ export default function App() {
       e.preventDefault();
       const form = e.currentTarget;
       const formData = new FormData(form);
-      const newPyq = {
-        id: Date.now(),
-        date: formData.get('date') as string,
-        subject: formData.get('subject') as string,
-        sets: Number(formData.get('sets')),
-        shiftYear: formData.get('shiftYear') as string,
-        notes: formData.get('notes') as string
-      };
+      const date = String(formData.get('date') || '').trim();
+      const subject = String(formData.get('subject') || '').trim();
+      const sets = Number(formData.get('sets'));
+      const shiftYear = String(formData.get('shiftYear') || '').trim();
+      const notes = String(formData.get('notes') || '').trim();
+
+      if (!date || !subject || !shiftYear || shiftYear.length > 80 || !Number.isInteger(sets) || sets < 1 || sets > 1000) {
+        alert('Please enter valid PYQ details. Sets must be a whole number between 1 and 1000.');
+        return;
+      }
+
+      const newPyq = { id: Date.now(), date, subject, sets, shiftYear, notes };
       setPyqLogs([newPyq, ...pyqLogs]);
       form.reset();
     };
@@ -952,7 +999,7 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Shift / Year</label>
-              <input required name="shiftYear" type="text" placeholder="e.g. SSC GD 2024 Shift-1" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
+              <input required name="shiftYear" type="text" placeholder="e.g. SSC GD 2024 Shift-1" maxLength={80} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
             </div>
           </div>
           <div>
@@ -1095,6 +1142,11 @@ export default function App() {
       const topic = (formData.get('topic') as string).trim();
       const today = new Date().toISOString().split('T')[0];
 
+      if (!subject || !topic || topic.length > 120) {
+        alert('Please enter a valid weak topic (maximum 120 characters).');
+        return;
+      }
+
       const existing = weakTopics.find(w => w.subject === subject && w.topic.toLowerCase() === topic.toLowerCase());
       if (existing) {
         setWeakTopics(weakTopics.map(w => w.id === existing.id ? { ...w, count: w.count + 1, lastDate: today } : w));
@@ -1138,7 +1190,7 @@ export default function App() {
           </div>
           <div className="flex-1 w-full">
             <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Weak Topic Name</label>
-            <input required name="topic" type="text" placeholder="e.g. CI Installments / Seating Arrangement" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
+            <input required name="topic" type="text" placeholder="e.g. CI Installments / Seating Arrangement" maxLength={120} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
           </div>
           <button type="submit" className="w-full md:w-auto bg-rose-600 hover:bg-rose-500 text-white font-semibold py-2 px-6 rounded-lg transition-colors text-sm">
             Flag Topic
