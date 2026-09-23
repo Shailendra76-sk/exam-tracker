@@ -24,6 +24,7 @@ import {
   Maximize2,
   Timer as TimerIcon,
   Bot,
+  ShieldCheck,
   Send,
   Paperclip,
   FileText,
@@ -35,6 +36,7 @@ import {
 } from 'lucide-react';
 import MasterSyllabus from './components/MasterSyllabus';
 import AIStudyBot from './components/AIStudyBot';
+import AdminPanel from './components/AdminPanel';
 import MockTracker, { type MockLog } from './components/MockTracker';
 
 // --- CONSTANTS & COLOR THEMES ---
@@ -494,6 +496,7 @@ export default function App() {
     { id: 'weak', num: '06', label: 'Weak Topics Tracker', icon: AlertTriangle },
     { id: 'syllabus', num: '07', label: 'Syllabus Checklist', icon: ListChecks },
     { id: 'planner', num: '08', label: 'Smart Study Planner', icon: Target },
+    { id: 'admin', num: '09', label: 'Admin Panel', icon: ShieldCheck },
   ];
 
   const resetAllData = () => {
@@ -1592,6 +1595,7 @@ export default function App() {
           {activeTab === 'weak' && renderWeakTopics()}
           {activeTab === 'syllabus' && renderSyllabus()}
           {activeTab === 'planner' && renderSmartPlanner()}
+          {activeTab === 'admin' && <AdminPanel dailyLogs={dailyLogs} mocks={mocks} syllabus={syllabus} />}
           {activeTab === 'ai-bot' && <AIStudyBot studyContext={aiStudyContext} defaultExam={selectedExam} />}
         </div>
       </main>
