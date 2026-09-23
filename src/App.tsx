@@ -628,6 +628,23 @@ export default function App() {
   const [dailyFormExam, setDailyFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
   const [pyqFormExam, setPyqFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
 
+  useEffect(() => {
+    const migrationKey = "field-log:v1:exam-migration-1";
+    if (window.localStorage.getItem(migrationKey) === "done") return;
+
+    setDailyLogs(prev =>
+      prev.map(log => log.exam ? log : { ...log, exam: "All Exams" })
+    );
+    setPyqLogs(prev =>
+      prev.map(log => log.exam ? log : { ...log, exam: "All Exams" })
+    );
+    setWeakTopics(prev =>
+      prev.map(topic => topic.exam ? topic : { ...topic, exam: "All Exams" })
+    );
+
+    window.localStorage.setItem(migrationKey, "done");
+  }, [setDailyLogs, setPyqLogs, setWeakTopics]);
+
   const navItems = [
     { id: 'dashboard', num: '01', label: 'Dashboard & Analytics', icon: LayoutDashboard },
     { id: 'daily', num: '02', label: 'Daily Log', icon: PenTool },
@@ -647,8 +664,11 @@ export default function App() {
       setPyqLogs([]);
       setWeakTopics([]);
       setNextPlan("");
+      setSelectedExam("All Exams");
       setPlannerGoalHours(5);
       setPlannerDone({});
+      window.localStorage.removeItem(TIMER_STORAGE_KEY);
+      window.localStorage.removeItem("field-log:v1:aiMessages");
       const resetSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean; custom?: boolean }>> = {};
       Object.entries(initialSyllabus).forEach(([key, topics]) => {
         resetSyllabus[key] = topics.map(t => ({ ...t, completed: false }));
@@ -667,7 +687,8 @@ export default function App() {
     'selectedExam',
     'plannerGoalHours',
     'plannerDone',
-    'aiMessages'
+    'aiMessages',
+    'studyTimer'
   ] as const;
 
   const exportBackup = () => {
@@ -680,7 +701,8 @@ export default function App() {
 
     const data = payload.data as Record<string, unknown>;
     backupKeys.forEach(key => {
-      const raw = window.localStorage.getItem(`field-log:v1:${key}`);
+      const storageKey = key === "studyTimer" ? TIMER_STORAGE_KEY : `field-log:v1:${key}`;
+      const raw = window.localStorage.getItem(storageKey);
       if (raw) {
         try {
           data[key] = JSON.parse(raw);
@@ -720,7 +742,8 @@ export default function App() {
       const data = payload.data as Record<string, unknown>;
       backupKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
-          window.localStorage.setItem(`field-log:v1:${key}`, JSON.stringify(data[key]));
+          const storageKey = key === "studyTimer" ? TIMER_STORAGE_KEY : `field-log:v1:${key}`;
+          window.localStorage.setItem(storageKey, JSON.stringify(data[key]));
         }
       });
 
