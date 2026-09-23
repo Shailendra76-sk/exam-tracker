@@ -33,6 +33,7 @@ import {
   Download,
   Upload
 } from 'lucide-react';
+import MasterSyllabus from './components/MasterSyllabus';
 
 // --- CONSTANTS & COLOR THEMES ---
 const SUBJECT_COLORS: Record<string, string> = { 
@@ -680,6 +681,7 @@ export default function App() {
       setPlannerGoalHours(5);
       setPlannerDone({});
       window.localStorage.removeItem(TIMER_STORAGE_KEY);
+      window.localStorage.removeItem("field-log:v2:master-syllabus:maths");
       window.localStorage.removeItem("field-log:v1:aiMessages");
       const resetSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean; custom?: boolean }>> = {};
       Object.entries(initialSyllabus).forEach(([key, topics]) => {
@@ -700,7 +702,8 @@ export default function App() {
     'plannerGoalHours',
     'plannerDone',
     'aiMessages',
-    'studyTimer'
+    'studyTimer',
+    'masterSyllabusMaths'
   ] as const;
 
   const exportBackup = () => {
@@ -713,7 +716,11 @@ export default function App() {
 
     const data = payload.data as Record<string, unknown>;
     backupKeys.forEach(key => {
-      const storageKey = key === "studyTimer" ? TIMER_STORAGE_KEY : `field-log:v1:${key}`;
+      const storageKey = key === "studyTimer"
+        ? TIMER_STORAGE_KEY
+        : key === "masterSyllabusMaths"
+          ? "field-log:v2:master-syllabus:maths"
+          : `field-log:v1:${key}`;
       const raw = window.localStorage.getItem(storageKey);
       if (raw) {
         try {
@@ -754,7 +761,11 @@ export default function App() {
       const data = payload.data as Record<string, unknown>;
       backupKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
-          const storageKey = key === "studyTimer" ? TIMER_STORAGE_KEY : `field-log:v1:${key}`;
+          const storageKey = key === "studyTimer"
+            ? TIMER_STORAGE_KEY
+            : key === "masterSyllabusMaths"
+              ? "field-log:v2:master-syllabus:maths"
+              : `field-log:v1:${key}`;
           window.localStorage.setItem(storageKey, JSON.stringify(data[key]));
         }
       });
@@ -1853,86 +1864,13 @@ export default function App() {
     );
   };
 
-  // --- 7. SYLLABUS CHECKLIST ---
-  const renderSyllabus = () => {
-    const toggleTopic = (subject: string, id: string) => {
-      setSyllabus({
-        ...syllabus,
-        [subject]: syllabus[subject].map(topic => 
-          topic.id === id ? { ...topic, completed: !topic.completed } : topic
-        )
-      });
-    };
-
-    const addCustomTopic = (subject: string, inputId: string) => {
-      const input = document.getElementById(inputId) as HTMLInputElement;
-      if (!input || !input.value.trim()) return;
-      
-      const newTopic = { id: `custom_${Date.now()}`, name: input.value.trim(), completed: false, custom: true };
-      setSyllabus({
-        ...syllabus,
-        [subject]: [...syllabus[subject], newTopic]
-      });
-      input.value = '';
-    };
-
-    return (
-      <div className="space-y-6 animate-in fade-in duration-500">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-100 font-serif">Subject-wise Syllabus Checklist</h2>
-          <p className="text-slate-400 text-sm mt-1">Target exam select karo; relevant subjects ka syllabus aur progress yahin track hoga.</p>
-          <div className="mt-4 max-w-sm">
-            <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Target Exam</label>
-            <select value={selectedExam} onChange={e => setSelectedExam(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
-              {Object.keys(EXAM_SUBJECTS).map(exam => <option key={exam}>{exam}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {Object.entries(syllabus)
-            .filter(([subject]) => (EXAM_SUBJECTS[selectedExam] || EXAM_SUBJECTS["All Exams"]).includes(subject))
-            .map(([subject, topics]) => {
-            const completed = topics.filter(t => t.completed).length;
-            const pct = topics.length ? Math.round((completed / topics.length) * 100) : 0;
-            const inputId = `custom-sub-${subject}`;
-
-            return (
-              <div key={subject} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold text-slate-200 flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${SUBJECT_COLORS[subject]}`}></span>
-                      {subject}
-                    </h3>
-                    <span className="text-xs font-mono text-slate-400">{completed}/{topics.length} ({pct}%)</span>
-                  </div>
-                  
-                  <div className="w-full bg-slate-950 rounded-sm h-1.5 mb-4 border border-slate-800 overflow-hidden">
-                    <div className={`h-full ${SUBJECT_COLORS[subject]} transition-all duration-500`} style={{ width: `${pct}%` }}></div>
-                  </div>
-
-                  <div className="space-y-1 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                    {topics.map(topic => (
-                      <div key={topic.id} className="flex items-center gap-2 p-2 hover:bg-slate-800/40 rounded-lg cursor-pointer select-none" onClick={() => toggleTopic(subject, topic.id)}>
-                        {topic.completed ? <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" /> : <Circle size={16} className="text-slate-600 flex-shrink-0" />}
-                        <span className={`text-xs flex-1 ${topic.completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{topic.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mt-4 pt-3 border-t border-slate-800">
-                  <input id={inputId} type="text" placeholder="+ Add topic" className="flex-1 bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-300 outline-none focus:border-amber-500" />
-                  <button onClick={() => addCustomTopic(subject, inputId)} className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1 rounded">Add</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  // --- 7. MASTER MATHS SYLLABUS ---
+  const renderSyllabus = () => (
+    <MasterSyllabus
+      selectedExam={selectedExam}
+      onSelectedExamChange={setSelectedExam}
+    />
+  );
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-amber-500/30 relative">
