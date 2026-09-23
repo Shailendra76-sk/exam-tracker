@@ -1169,7 +1169,7 @@ export default function App() {
       <div className="space-y-6 animate-in fade-in duration-500">
         <div>
           <h2 className="text-2xl font-bold text-slate-100 font-serif">Mock Test Performance Tracker</h2>
-          <p className="text-slate-400 text-sm mt-1">Sectional score, overall score aur automatic accuracy percentage log karein • View: ${selectedExam}</p>
+          <p className="text-slate-400 text-sm mt-1">Sectional score, overall score aur automatic accuracy percentage log karein • View: {selectedExam}</p>
         </div>
 
         <form onSubmit={handleAddMock} className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm space-y-4">
@@ -1312,7 +1312,7 @@ export default function App() {
       <div className="space-y-6 animate-in fade-in duration-500">
         <div>
           <h2 className="text-2xl font-bold text-slate-100 font-serif">Previous Year Question (PYQ) Practice Log</h2>
-          <p className="text-slate-400 text-sm mt-1">Shift-wise past papers, total sets solved aur paper patterns ka record • View: ${selectedExam}</p>
+          <p className="text-slate-400 text-sm mt-1">Shift-wise past papers, total sets solved aur paper patterns ka record • View: {selectedExam}</p>
         </div>
 
         {/* 4 Direct Practice Portals */}
@@ -1718,7 +1718,7 @@ export default function App() {
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-100 font-serif">Weak Topic Tracker (Frequency Counter)</h2>
-            <p className="text-slate-400 text-sm mt-1">Jo topic mock mein baar-baar galat ho, uska error count increment karein • View: ${selectedExam}</p>
+            <p className="text-slate-400 text-sm mt-1">Jo topic mock mein baar-baar galat ho, uska error count increment karein • View: {selectedExam}</p>
           </div>
           <div className="flex gap-2">
             <a href="https://testbook.com/pass" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs bg-slate-900 border border-slate-700 hover:border-amber-500 text-slate-300 px-3 py-2 rounded-lg">
