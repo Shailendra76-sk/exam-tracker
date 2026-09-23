@@ -43,18 +43,32 @@ const SUBJECT_COLORS: Record<string, string> = {
 };
 
 const EXAM_COLORS: Record<string, string> = { 
-  'SSC GD': 'bg-amber-600', 
-  'SSC MTS': 'bg-sky-600', 
-  'RRB Group D': 'bg-emerald-600',
-  'AOC JOA': 'bg-purple-600',
   'SSC CHSL': 'bg-indigo-600',
+  'SSC MTS': 'bg-sky-600', 
+  'SSC GD': 'bg-amber-600', 
+  'RRB Group D': 'bg-emerald-600',
+  'RRB NTPC': 'bg-cyan-600',
+  'UP Lekhpal': 'bg-orange-600',
+  'AOC JOA': 'bg-purple-600',
   'RPF': 'bg-rose-600'
+};
+
+const EXAM_SUBJECTS: Record<string, string[]> = {
+  'All Exams': ['Maths', 'Reasoning', 'Science', 'English', 'Hindi', 'GK'],
+  'SSC CHSL': ['Maths', 'Reasoning', 'English', 'GK'],
+  'SSC MTS': ['Maths', 'Reasoning', 'English', 'GK', 'Science'],
+  'SSC GD': ['Maths', 'Reasoning', 'English', 'Hindi', 'GK', 'Science'],
+  'RRB Group D': ['Maths', 'Reasoning', 'Science', 'GK'],
+  'RRB NTPC': ['Maths', 'Reasoning', 'English', 'GK'],
+  'UP Lekhpal': ['Maths', 'Reasoning', 'Hindi', 'GK'],
+  'AOC JOA': ['Maths', 'Reasoning', 'English', 'GK', 'Computer'],
+  'RPF': ['Maths', 'Reasoning', 'English', 'GK'],
 };
 
 // --- INITIAL STATE DATA ---
 const initialDailyLogs = [
-  { id: 1, date: '2026-08-28', subject: 'Maths', topic: 'Percentage & Successive Change', hours: 2.5, notes: 'Formula clarity achieved, practiced 30 PYQs.' },
-  { id: 2, date: '2026-08-29', subject: 'Reasoning', topic: 'Syllogism (Only a few cases)', hours: 2.0, notes: 'Need more practice on Possibility statements.' },
+  { id: 1, date: '2026-08-28', exam: 'SSC CHSL', subject: 'Maths', topic: 'Percentage & Successive Change', hours: 2.5, notes: 'Formula clarity achieved, practiced 30 PYQs.' },
+  { id: 2, date: '2026-08-29', exam: 'RRB Group D', subject: 'Reasoning', topic: 'Syllogism (Only a few cases)', hours: 2.0, notes: 'Need more practice on Possibility statements.' },
 ];
 
 const initialMocks = [
@@ -63,15 +77,15 @@ const initialMocks = [
 ];
 
 const initialPyqLogs = [
-  { id: 1, date: '2026-08-25', subject: 'Maths', sets: 2, shiftYear: 'SSC GD 2024 Shift-1 & 2', notes: 'Repeated questions from Time-Work & Compound Interest.' },
-  { id: 2, date: '2026-08-28', subject: 'Reasoning', sets: 3, shiftYear: 'RRB Group D 2022 All Shifts', notes: 'High frequency of circular seating arrangements.' }
+  { id: 1, date: '2026-08-25', exam: 'SSC GD', subject: 'Maths', topic: 'Time & Work', sets: 2, shiftYear: 'SSC GD 2024 Shift-1 & 2', notes: 'Repeated questions from Time-Work & Compound Interest.' },
+  { id: 2, date: '2026-08-28', exam: 'RRB Group D', subject: 'Reasoning', topic: 'Seating Arrangement', sets: 3, shiftYear: 'RRB Group D 2022 All Shifts', notes: 'High frequency of circular seating arrangements.' }
 ];
 
 const initialWeakTopics = [
-  { id: 1, subject: 'Maths', topic: 'Compound Interest Installments', count: 6, lastDate: '2026-08-29' },
-  { id: 2, subject: 'Reasoning', topic: 'Circular Seating Arrangement', count: 8, lastDate: '2026-08-30' },
-  { id: 3, subject: 'English', topic: 'Preposition Rules & Phrasal Verbs', count: 4, lastDate: '2026-08-27' },
-  { id: 4, subject: 'GK', topic: 'Classical Dances & Folk Arts', count: 5, lastDate: '2026-08-28' },
+  { id: 1, exam: 'SSC CHSL', subject: 'Maths', topic: 'Compound Interest Installments', count: 6, lastDate: '2026-08-29' },
+  { id: 2, exam: 'RRB Group D', subject: 'Reasoning', topic: 'Circular Seating Arrangement', count: 8, lastDate: '2026-08-30' },
+  { id: 3, exam: 'SSC CHSL', subject: 'English', topic: 'Preposition Rules & Phrasal Verbs', count: 4, lastDate: '2026-08-27' },
+  { id: 4, exam: 'All Exams', subject: 'GK', topic: 'Classical Dances & Folk Arts', count: 5, lastDate: '2026-08-28' },
 ];
 
 const initialSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean; custom?: boolean }>> = {
@@ -365,7 +379,7 @@ const AIStudyBot = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
           <select value={exam} onChange={e => setExam(e.target.value)} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300">
-            <option>Any Exam</option><option>RRB Group D</option><option>SSC MTS</option><option>SSC GD</option><option>SSC CHSL</option><option>RRB NTPC</option><option>NEET</option><option>JEE</option><option>Banking</option><option>UPSC</option><option>Other</option>
+            <option>Any Exam</option><option>RRB Group D</option><option>RRB NTPC</option><option>UP Lekhpal</option><option>SSC MTS</option><option>SSC GD</option><option>SSC CHSL</option><option>RRB NTPC</option><option>NEET</option><option>JEE</option><option>Banking</option><option>UPSC</option><option>Other</option>
           </select>
           <select value={subject} onChange={e => setSubject(e.target.value)} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300">
             <option>Any Subject</option><option>Mathematics</option><option>Reasoning</option><option>Science</option><option>GK</option><option>Current Affairs</option><option>English</option><option>Hindi</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Computer</option><option>Other</option>
@@ -443,6 +457,7 @@ export default function App() {
   const [weakTopics, setWeakTopics] = usePersistentState("weakTopics", initialWeakTopics);
   const [syllabus, setSyllabus] = usePersistentState("syllabus", initialSyllabus);
   const [nextPlan, setNextPlan] = usePersistentState("nextPlan", "Maths CI Installments + Reasoning Circular Puzzle revision + 1 Full Mock Test.");
+  const [selectedExam, setSelectedExam] = usePersistentState("selectedExam", "All Exams");
 
   const navItems = [
     { id: 'dashboard', num: '01', label: 'Dashboard & Analytics', icon: LayoutDashboard },
@@ -472,18 +487,30 @@ export default function App() {
 
   // --- 1. DASHBOARD & ANALYTICS ---
   const renderDashboard = () => {
-    const totalHours = dailyLogs.reduce((acc, log) => acc + Number(log.hours), 0);
-    const totalPyqSets = pyqLogs.reduce((acc, log) => acc + Number(log.sets), 0);
-    const avgScore = mocks.length ? (mocks.reduce((acc, m) => acc + m.totalScore, 0) / mocks.length).toFixed(1) : '—';
+    const matchesExam = (exam?: string) =>
+      selectedExam === "All Exams" || !exam || exam === "All Exams" || exam === selectedExam;
 
-    const subjectHours = dailyLogs.reduce((acc: Record<string, number>, log) => {
+    const filteredDailyLogs = dailyLogs.filter(log => matchesExam(log.exam));
+    const filteredPyqLogs = pyqLogs.filter(log => matchesExam(log.exam));
+    const filteredWeakTopics = weakTopics.filter(topic => matchesExam(topic.exam));
+    const filteredMocks = selectedExam === "All Exams"
+      ? mocks
+      : mocks.filter(mock => mock.type === selectedExam);
+
+    const totalHours = filteredDailyLogs.reduce((acc, log) => acc + Number(log.hours), 0);
+    const totalPyqSets = filteredPyqLogs.reduce((acc, log) => acc + Number(log.sets), 0);
+    const avgScore = filteredMocks.length ? (filteredMocks.reduce((acc, m) => acc + m.totalScore, 0) / filteredMocks.length).toFixed(1) : '—';
+
+    const subjectHours = filteredDailyLogs.reduce((acc: Record<string, number>, log) => {
       acc[log.subject] = (acc[log.subject] || 0) + Number(log.hours);
       return acc;
     }, {});
     const maxHour = Math.max(1, ...Object.values(subjectHours));
 
     let totalItems = 0; let completedItems = 0;
-    Object.values(syllabus).forEach(topics => {
+    const dashboardSubjects = EXAM_SUBJECTS[selectedExam] || EXAM_SUBJECTS["All Exams"];
+    dashboardSubjects.forEach(subject => {
+      const topics = syllabus[subject] || [];
       totalItems += topics.length;
       completedItems += topics.filter(t => t.completed).length;
     });
@@ -493,7 +520,7 @@ export default function App() {
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (progressPercent / 100) * circumference;
 
-    const topWeak = [...weakTopics].sort((a, b) => b.count - a.count).slice(0, 3);
+    const topWeak = [...filteredWeakTopics].sort((a, b) => b.count - a.count).slice(0, 3);
 
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -502,7 +529,17 @@ export default function App() {
             <Sparkles size={14} /> Comprehensive Control Centre
           </div>
           <h2 className="text-2xl md:text-3xl font-bold text-slate-100 font-serif">Mission Dashboard & Analytics</h2>
-          <p className="text-slate-400 text-sm mt-1">Study performance, subject hours breakdown, aur 2026 exam matrix.</p>
+          <p className="text-slate-400 text-sm mt-1">Selected exam ke hisaab se study, PYQ, mock aur weak-topic progress dekho.</p>
+          <div className="mt-4 max-w-sm">
+            <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Target Exam</label>
+            <select
+              value={selectedExam}
+              onChange={e => setSelectedExam(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500"
+            >
+              {Object.keys(EXAM_SUBJECTS).map(exam => <option key={exam}>{exam}</option>)}
+            </select>
+          </div>
         </div>
 
         {/* 4 Metric Cards */}
@@ -582,7 +619,7 @@ export default function App() {
               <p className="text-sm text-slate-500 italic py-8 text-center">No mock score logged yet.</p>
             ) : (
               <div className="h-40 flex items-end justify-between gap-3 border-b border-l border-slate-700 pb-2 pl-2 relative">
-                {[...mocks].reverse().map((mock) => {
+                {[...filteredMocks].reverse().map((mock) => {
                   const heightPercent = Math.min((mock.totalScore / 160) * 100, 100);
                   const color = EXAM_COLORS[mock.type] || 'bg-indigo-500';
                   return (
@@ -697,6 +734,7 @@ export default function App() {
       const form = e.currentTarget;
       const formData = new FormData(form);
       const date = String(formData.get('date') || '').trim();
+      const selectedLogExam = String(formData.get('exam') || selectedExam).trim();
       const subject = String(formData.get('subject') || '').trim();
       const topic = String(formData.get('topic') || '').trim();
       const hours = Number(formData.get('hours'));
@@ -707,7 +745,7 @@ export default function App() {
         return;
       }
 
-      const newLog = { id: Date.now(), date, subject, topic, hours, notes };
+      const newLog = { id: Date.now(), date, exam: selectedLogExam, subject, topic, hours, notes };
       setDailyLogs([newLog, ...dailyLogs]);
       form.reset();
     };
@@ -726,8 +764,14 @@ export default function App() {
               <input required name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500" />
             </div>
             <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam</label>
+              <select required name="exam" defaultValue={selectedExam === "All Exams" ? "SSC CHSL" : selectedExam} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
+                {Object.keys(EXAM_SUBJECTS).filter(e => e !== "All Exams").map(exam => <option key={exam}>{exam}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
-              <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
+              <select required name="subject">
                 <option value="Maths">Maths</option>
                 <option value="Reasoning">Reasoning</option>
                 <option value="Science">Science</option>
@@ -762,6 +806,7 @@ export default function App() {
               <thead>
                 <tr className="bg-slate-950 text-slate-400 text-xs uppercase tracking-wider">
                   <th className="p-4 border-b border-slate-800 font-semibold">Date</th>
+                  <th className="p-4 border-b border-slate-800 font-semibold">Exam</th>
                   <th className="p-4 border-b border-slate-800 font-semibold">Subject</th>
                   <th className="p-4 border-b border-slate-800 font-semibold">Topic</th>
                   <th className="p-4 border-b border-slate-800 font-semibold">Hours</th>
@@ -773,6 +818,7 @@ export default function App() {
                 {dailyLogs.map(log => (
                   <tr key={log.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                     <td className="p-4 font-mono whitespace-nowrap">{log.date}</td>
+                    <td className="p-4"><span className="px-2 py-1 rounded text-[10px] font-bold text-white bg-slate-700">{log.exam || 'All Exams'}</span></td>
                     <td className="p-4"><span className={`px-2 py-1 rounded text-[10px] font-bold text-white ${SUBJECT_COLORS[log.subject]}`}>{log.subject}</span></td>
                     <td className="p-4 font-medium text-slate-200">{log.topic}</td>
                     <td className="p-4 font-mono text-amber-400 font-bold">{log.hours}h</td>
@@ -834,6 +880,8 @@ export default function App() {
                 <option value="SSC GD">SSC GD</option>
                 <option value="SSC MTS">SSC MTS</option>
                 <option value="RRB Group D">RRB Group D</option>
+                <option value="RRB NTPC">RRB NTPC</option>
+                <option value="UP Lekhpal">UP Lekhpal</option>
                 <option value="AOC JOA">AOC JOA</option>
                 <option value="SSC CHSL">SSC CHSL</option>
                 <option value="RPF">RPF</option>
@@ -943,7 +991,15 @@ export default function App() {
         return;
       }
 
-      const newPyq = { id: Date.now(), date, subject, sets, shiftYear, notes };
+      const exam = String(formData.get('exam') || (selectedExam === "All Exams" ? "SSC CHSL" : selectedExam)).trim();
+      const topic = String(formData.get('topic') || '').trim();
+
+      if (!exam || !topic || topic.length > 120) {
+        alert('Please select an exam and enter a valid topic (maximum 120 characters).');
+        return;
+      }
+
+      const newPyq = { id: Date.now(), date, exam, subject, topic, sets, shiftYear, notes };
       setPyqLogs([newPyq, ...pyqLogs]);
       form.reset();
     };
@@ -983,6 +1039,12 @@ export default function App() {
               <input required name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
             </div>
             <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam</label>
+              <select required name="exam" defaultValue={selectedExam === "All Exams" ? "SSC CHSL" : selectedExam} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+                {Object.keys(EXAM_SUBJECTS).filter(e => e !== "All Exams").map(exam => <option key={exam}>{exam}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
               <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
                 <option value="Maths">Maths</option>
@@ -996,6 +1058,10 @@ export default function App() {
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Sets Solved</label>
               <input required name="sets" type="number" min="1" placeholder="2" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Topic</label>
+              <input required name="topic" type="text" maxLength={120} placeholder="e.g. Percentage / Time & Work" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Shift / Year</label>
@@ -1019,7 +1085,9 @@ export default function App() {
               <thead>
                 <tr className="bg-slate-950 text-slate-400 text-xs uppercase tracking-wider">
                   <th className="p-4 border-b border-slate-800 font-semibold">Date</th>
+                  <th className="p-4 border-b border-slate-800 font-semibold">Exam</th>
                   <th className="p-4 border-b border-slate-800 font-semibold">Subject</th>
+                  <th className="p-4 border-b border-slate-800 font-semibold">Topic</th>
                   <th className="p-4 border-b border-slate-800 font-semibold">Sets</th>
                   <th className="p-4 border-b border-slate-800 font-semibold">Shift / Year</th>
                   <th className="p-4 border-b border-slate-800 font-semibold">Pattern Notes</th>
@@ -1030,7 +1098,9 @@ export default function App() {
                 {pyqLogs.map(log => (
                   <tr key={log.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                     <td className="p-4 font-mono whitespace-nowrap">{log.date}</td>
+                    <td className="p-4"><span className="px-2 py-1 rounded text-[10px] font-bold text-white bg-slate-700">{log.exam || 'All Exams'}</span></td>
                     <td className="p-4"><span className={`px-2 py-1 rounded text-[10px] font-bold text-white ${SUBJECT_COLORS[log.subject]}`}>{log.subject}</span></td>
+                    <td className="p-4 font-medium text-slate-200">{log.topic || '—'}</td>
                     <td className="p-4 font-mono font-bold text-fuchsia-400">{log.sets}</td>
                     <td className="p-4 font-medium text-slate-200">{log.shiftYear}</td>
                     <td className="p-4 text-slate-400 text-xs">{log.notes || '—'}</td>
@@ -1147,11 +1217,17 @@ export default function App() {
         return;
       }
 
-      const existing = weakTopics.find(w => w.subject === subject && w.topic.toLowerCase() === topic.toLowerCase());
+      const newEntryExam = String(formData.get('exam') || (selectedExam === "All Exams" ? "SSC CHSL" : selectedExam)).trim();
+      if (!newEntryExam) {
+        alert('Please select an exam.');
+        return;
+      }
+
+      const existing = weakTopics.find(w => w.exam === newEntryExam && w.subject === subject && w.topic.toLowerCase() === topic.toLowerCase());
       if (existing) {
         setWeakTopics(weakTopics.map(w => w.id === existing.id ? { ...w, count: w.count + 1, lastDate: today } : w));
       } else {
-        setWeakTopics([...weakTopics, { id: Date.now(), subject, topic, count: 1, lastDate: today }]);
+        setWeakTopics([...weakTopics, { id: Date.now(), exam: newEntryExam, subject, topic, count: 1, lastDate: today }]);
       }
       form.reset();
     };
@@ -1178,6 +1254,11 @@ export default function App() {
 
         <form onSubmit={handleAddWeak} className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm flex flex-col md:flex-row gap-4 items-end">
           <div className="w-full md:w-1/4">
+            <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam</label>
+            <select required name="exam" defaultValue={selectedExam === "All Exams" ? "SSC CHSL" : selectedExam} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+              {Object.keys(EXAM_SUBJECTS).filter(e => e !== "All Exams").map(exam => <option key={exam}>{exam}</option>)}
+            </select>
+          </div><div className="w-full md:w-1/4">
             <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
             <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
               <option value="Maths">Maths</option>
@@ -1205,7 +1286,8 @@ export default function App() {
                 isCritical ? 'bg-rose-950/20 border-rose-500/40' : 'bg-slate-900 border-slate-800'
               }`}>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold text-slate-300 bg-slate-800">{w.exam || 'All Exams'}</span>
                     {isCritical && <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded uppercase">Critical Priority</span>}
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white ${SUBJECT_COLORS[w.subject]}`}>{w.subject}</span>
                     <h3 className="text-base font-medium text-slate-200">{w.topic}</h3>
@@ -1260,11 +1342,19 @@ export default function App() {
       <div className="space-y-6 animate-in fade-in duration-500">
         <div>
           <h2 className="text-2xl font-bold text-slate-100 font-serif">Subject-wise Syllabus Checklist</h2>
-          <p className="text-slate-400 text-sm mt-1">Topics tick karte jao aur completion progress realtime track karein.</p>
+          <p className="text-slate-400 text-sm mt-1">Target exam select karo; relevant subjects ka syllabus aur progress yahin track hoga.</p>
+          <div className="mt-4 max-w-sm">
+            <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Target Exam</label>
+            <select value={selectedExam} onChange={e => setSelectedExam(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
+              {Object.keys(EXAM_SUBJECTS).map(exam => <option key={exam}>{exam}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {Object.entries(syllabus).map(([subject, topics]) => {
+          {Object.entries(syllabus)
+            .filter(([subject]) => (EXAM_SUBJECTS[selectedExam] || EXAM_SUBJECTS["All Exams"]).includes(subject))
+            .map(([subject, topics]) => {
             const completed = topics.filter(t => t.completed).length;
             const pct = topics.length ? Math.round((completed / topics.length) * 100) : 0;
             const inputId = `custom-sub-${subject}`;
