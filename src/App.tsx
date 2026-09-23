@@ -45,6 +45,8 @@ const SUBJECT_COLORS: Record<string, string> = {
   'Computer': 'bg-cyan-600'
 };
 
+const APP_VERSION = "2.0";
+
 const EXAM_COLORS: Record<string, string> = { 
   'SSC CHSL': 'bg-indigo-600',
   'SSC MTS': 'bg-sky-600', 
@@ -57,7 +59,7 @@ const EXAM_COLORS: Record<string, string> = {
 };
 
 const EXAM_SUBJECTS: Record<string, string[]> = {
-  'All Exams': ['Maths', 'Reasoning', 'Science', 'English', 'Hindi', 'GK'],
+  'All Exams': ['Maths', 'Reasoning', 'Science', 'English', 'Hindi', 'GK', 'Computer'],
   'SSC CHSL': ['Maths', 'Reasoning', 'English', 'GK'],
   'SSC MTS': ['Maths', 'Reasoning', 'English', 'GK', 'Science'],
   'SSC GD': ['Maths', 'Reasoning', 'English', 'Hindi', 'GK', 'Science'],
@@ -856,21 +858,39 @@ export default function App() {
 
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
-        <div>
-          <div className="flex items-center gap-2 text-amber-500 text-xs uppercase font-bold tracking-widest mb-1">
-            <Sparkles size={14} /> Comprehensive Control Centre
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/20 p-5 md:p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap text-amber-500 text-xs uppercase font-bold tracking-widest mb-2">
+                <Sparkles size={14} /> Comprehensive Control Centre
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 tracking-normal">LIVE • v{APP_VERSION}</span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-100 font-serif">Mission Dashboard & Analytics</h2>
+              <p className="text-slate-400 text-sm mt-1">Ab tracker selected exam ke according Daily Log, Mock, PYQ, Weak Topics aur Planner ko ek saath organize karta hai.</p>
+            </div>
+            <div className="w-full lg:w-72 shrink-0">
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Target Exam</label>
+              <select
+                value={selectedExam}
+                onChange={e => setSelectedExam(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-200 outline-none focus:border-amber-500"
+              >
+                {Object.keys(EXAM_SUBJECTS).map(exam => <option key={exam}>{exam}</option>)}
+              </select>
+            </div>
           </div>
-          <h2 className="text-2xl md:text-3xl font-bold text-slate-100 font-serif">Mission Dashboard & Analytics</h2>
-          <p className="text-slate-400 text-sm mt-1">Selected exam ke hisaab se study, PYQ, mock aur weak-topic progress dekho.</p>
-          <div className="mt-4 max-w-sm">
-            <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Target Exam</label>
-            <select
-              value={selectedExam}
-              onChange={e => setSelectedExam(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500"
-            >
-              {Object.keys(EXAM_SUBJECTS).map(exam => <option key={exam}>{exam}</option>)}
-            </select>
+          <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              { label: 'Daily Log', tab: 'daily' },
+              { label: 'Mock Tracker', tab: 'mocks' },
+              { label: 'PYQ Log', tab: 'pyq' },
+              { label: 'Smart Planner', tab: 'planner' },
+            ].map(action => (
+              <button key={action.tab} onClick={() => setActiveTab(action.tab)} className="text-left bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors">
+                <div className="text-xs font-semibold text-slate-200">{action.label}</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Open {selectedExam}</div>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -883,7 +903,7 @@ export default function App() {
           </div>
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
             <h3 className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Mocks Attempted</h3>
-            <div className="text-3xl font-mono font-bold text-sky-400">{mocks.length}</div>
+            <div className="text-3xl font-mono font-bold text-sky-400">{filteredMocks.length}</div>
             <div className="text-xs text-slate-500 mt-1">Full-length tests</div>
           </div>
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
@@ -923,7 +943,7 @@ export default function App() {
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-sm">
             <h3 className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-4">Study Hours by Subject</h3>
             <div className="space-y-2.5">
-              {['Maths', 'Reasoning', 'Science', 'English', 'Hindi', 'GK'].map(sub => {
+              {dashboardSubjects.map(sub => {
                 const hrs = subjectHours[sub] || 0;
                 const pct = (hrs / maxHour) * 100;
                 return (
