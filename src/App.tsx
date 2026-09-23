@@ -41,7 +41,8 @@ const SUBJECT_COLORS: Record<string, string> = {
   'Science': 'bg-sky-600', 
   'English': 'bg-fuchsia-600', 
   'Hindi': 'bg-rose-600', 
-  'GK': 'bg-indigo-600'
+  'GK': 'bg-indigo-600',
+  'Computer': 'bg-cyan-600'
 };
 
 const EXAM_COLORS: Record<string, string> = { 
@@ -67,6 +68,9 @@ const EXAM_SUBJECTS: Record<string, string[]> = {
   'RPF': ['Maths', 'Reasoning', 'English', 'GK'],
 };
 
+
+const getSubjectsForExam = (exam: string) =>
+  EXAM_SUBJECTS[exam] || EXAM_SUBJECTS["All Exams"];
 // --- INITIAL STATE DATA ---
 const initialDailyLogs = [
   { id: 1, date: '2026-08-28', exam: 'SSC CHSL', subject: 'Maths', topic: 'Percentage & Successive Change', hours: 2.5, notes: 'Formula clarity achieved, practiced 30 PYQs.' },
@@ -173,6 +177,15 @@ const initialSyllabus: Record<string, Array<{ id: string; name: string; complete
     { id: 'g11', name: 'Static GK: Books, Authors, Awards & First in India', completed: false },
     { id: 'g12', name: 'Sports: Olympic Games, Cups-Trophies & Player Terminology', completed: false },
     { id: 'g13', name: 'Current Affairs: Last 6 Months High-Yield Events & Schemes', completed: false },
+  ],
+  Computer: [
+    { id: 'c1', name: 'Computer Fundamentals & Generations', completed: false },
+    { id: 'c2', name: 'Hardware, Input/Output Devices & Memory', completed: false },
+    { id: 'c3', name: 'Operating Systems & File Management', completed: false },
+    { id: 'c4', name: 'MS Word, Excel & PowerPoint Basics', completed: false },
+    { id: 'c5', name: 'Internet, Email, Browsers & Search Basics', completed: false },
+    { id: 'c6', name: 'Networking, LAN/WAN & Common Protocols', completed: false },
+    { id: 'c7', name: 'Cyber Security, Malware & Safe Online Practices', completed: false },
   ]
 };
 
@@ -956,12 +969,7 @@ export default function App() {
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
               <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
-                <option value="Maths">Maths</option>
-                <option value="Reasoning">Reasoning</option>
-                <option value="Science">Science</option>
-                <option value="English">English</option>
-                <option value="Hindi">Hindi</option>
-                <option value="GK">GK</option>
+                {getSubjectsForExam(selectedLogExam || (selectedExam === "All Exams" ? "SSC CHSL" : selectedExam)).map(subject => <option key={subject} value={subject}>{subject}</option>)}
               </select>
             </div>
             <div>
@@ -1231,12 +1239,7 @@ export default function App() {
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
               <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
-                <option value="Maths">Maths</option>
-                <option value="Reasoning">Reasoning</option>
-                <option value="Science">Science</option>
-                <option value="English">English</option>
-                <option value="Hindi">Hindi</option>
-                <option value="GK">GK</option>
+                {getSubjectsForExam(String((document.querySelector('select[name="exam"]') as HTMLSelectElement | null)?.value || (selectedExam === "All Exams" ? "SSC CHSL" : selectedExam))).map(subject => <option key={subject} value={subject}>{subject}</option>)}
               </select>
             </div>
             <div>
@@ -1623,12 +1626,7 @@ export default function App() {
           </div><div className="w-full md:w-1/4">
             <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
             <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
-              <option value="Maths">Maths</option>
-              <option value="Reasoning">Reasoning</option>
-              <option value="Science">Science</option>
-              <option value="English">English</option>
-              <option value="Hindi">Hindi</option>
-              <option value="GK">GK</option>
+              {getSubjectsForExam((selectedExam === "All Exams" ? "SSC CHSL" : selectedExam)).map(subject => <option key={subject} value={subject}>{subject}</option>)}
             </select>
           </div>
           <div className="flex-1 w-full">
@@ -1773,7 +1771,7 @@ export default function App() {
         <div className="pt-20 md:pt-6 px-6 pb-4 border-b border-slate-800/50">
           <div className="text-[10px] tracking-widest uppercase text-amber-500 font-bold mb-1">WRITTEN EXAM TRACKER</div>
           <h1 className="font-serif font-bold text-2xl text-white">Field Log</h1>
-          <div className="text-xs text-slate-500 mt-1">SSC GD · SSC MTS · RRB Group D</div>
+          <div className="text-xs text-slate-500 mt-1">SSC · RRB · UP Exams · AOC</div>
         </div>
         
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
