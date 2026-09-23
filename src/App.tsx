@@ -331,10 +331,10 @@ const FloatingTimer = () => {
   };
 
   return (
-    <div className={`fixed z-50 transition-all duration-300 shadow-2xl border border-slate-700/50 ${
+    <div className={`fixed z-[9998] transition-all duration-300 shadow-2xl border border-slate-700/50 ${
       isMinimized 
-        ? 'bottom-6 right-6 bg-slate-900/90 backdrop-blur-sm rounded-full px-4 py-2.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800'
-        : 'bottom-6 right-6 bg-slate-900 rounded-2xl p-5 w-64'
+        ? 'bottom-24 right-6 bg-slate-900/90 backdrop-blur-sm rounded-full px-4 py-2.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800'
+        : 'bottom-24 right-6 bg-slate-900 rounded-2xl p-5 w-64'
     }`}>
       {isMinimized ? (
         // Minimized View
@@ -363,12 +363,12 @@ const FloatingTimer = () => {
           </div>
           
           <div className="text-4xl font-mono font-bold text-center text-slate-100 mb-6 tracking-wider">
-            {formatTime(time)}
+            {formatTime(displayTime)}
           </div>
           
           <div className="flex justify-center gap-4">
             <button 
-              onClick={() => setIsRunning(!isRunning)} 
+              onClick={toggleTimer} 
               className={`p-3 rounded-full flex-1 flex justify-center items-center gap-2 font-semibold text-sm transition-colors ${
                 isRunning 
                   ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border border-rose-500/20' 
