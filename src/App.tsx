@@ -1162,6 +1162,13 @@ export default function App() {
 
   // --- 3. MOCK/TEST TRACKER ---
   const renderMockTracker = () => {
+    const section3Label = mockFormExam === "RRB Group D"
+      ? "Science"
+      : mockFormExam === "UP Lekhpal"
+        ? "Hindi"
+        : "Language";
+    const section4Label = "GK / GA";
+
     const handleAddMock = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       const form = e.currentTarget;
@@ -1175,9 +1182,6 @@ export default function App() {
       const ga = Number(formData.get('ga'));
       const correct = Number(formData.get('correct'));
       const incorrect = Number(formData.get('incorrect'));
-
-      const section3Label = mockFormExam === "RRB Group D" ? "Science" : mockFormExam === "UP Lekhpal" ? "Hindi" : "Language";
-    const section4Label = "GK / GA";
 
     const values = [totalScore, maths, reasoning, lang, ga, correct, incorrect];
       if (!date || !type || values.some(value => !Number.isFinite(value) || value < 0) || correct + incorrect === 0) {
