@@ -37,6 +37,9 @@ import {
 import MasterSyllabus from './components/MasterSyllabus';
 import AIStudyBot from './components/AIStudyBot';
 import AdminPanel from './components/AdminPanel';
+import AuthScreen from './AuthScreen';
+import { supabase } from './supabaseClient';
+import type { Session } from '@supabase/supabase-js';
 import MockTracker, { type MockLog } from './components/MockTracker';
 
 // --- CONSTANTS & COLOR THEMES ---
@@ -451,8 +454,37 @@ const getInitialTab = () => {
 };
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (!supabase) {
+      setAuthLoading(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mounted) return;
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
 
   // App State
   const [dailyLogs, setDailyLogs] = usePersistentState("dailyLogs", initialDailyLogs);
@@ -1527,12 +1559,48 @@ export default function App() {
   };
 
   // --- 7. MASTER MATHS SYLLABUS ---
+  async function signOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setSession(null);
+    setActiveTab('dashboard');
+    window.history.replaceState({}, '', '/');
+  }
+
   const renderSyllabus = () => (
     <MasterSyllabus
       selectedExam={selectedExam}
       onSelectedExamChange={setSelectedExam}
     />
   );
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+          Checking secure session...
+        </div>
+      </div>
+    );
+  }
+
+  if (!supabase) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="max-w-md rounded-2xl border border-amber-500/20 bg-slate-900 p-6 text-slate-200">
+          <h1 className="text-xl font-bold">Supabase Auth not configured</h1>
+          <p className="text-sm text-slate-500 mt-2">
+            Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in Vercel environment variables.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen session={null} onSessionChange={setSession} />;
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-amber-500/30 relative">
@@ -1579,6 +1647,20 @@ export default function App() {
             );
           })}
         </nav>
+
+        <div className="px-4 pt-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+            <div className="text-[9px] uppercase tracking-wider font-bold text-slate-600">Signed in</div>
+            <div className="mt-1 truncate text-xs text-slate-300">{session.user.email}</div>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-400 hover:border-rose-500 hover:text-rose-300"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
 
         <div className="p-4 border-t border-slate-800/50 mt-auto space-y-2">
           <input
