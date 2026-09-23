@@ -241,23 +241,22 @@ const FloatingTimer = () => {
     try {
       const raw = window.localStorage.getItem(TIMER_STORAGE_KEY);
       const saved = raw ? (JSON.parse(raw) as TimerStorage) : null;
-      if (!saved || typeof saved.time !== "number" || typeof saved.isRunning !== "boolean") {
-        return { time: 0, isRunning: false, startedAt: null };
-      }
 
-      if (saved.isRunning && saved.startedAt) {
-        const elapsed = Math.max(0, Math.floor((Date.now() - saved.startedAt) / 1000));
-        return {
-          time: saved.time + elapsed,
-          isRunning: true,
-          startedAt: saved.startedAt
-        };
+      if (
+        !saved ||
+        !Number.isFinite(saved.time) ||
+        typeof saved.isRunning !== "boolean"
+      ) {
+        return { time: 0, isRunning: false, startedAt: null };
       }
 
       return {
         time: Math.max(0, Math.floor(saved.time)),
-        isRunning: false,
-        startedAt: null
+        isRunning: saved.isRunning,
+        startedAt:
+          saved.isRunning && Number.isFinite(saved.startedAt)
+            ? saved.startedAt
+            : null
       };
     } catch {
       return { time: 0, isRunning: false, startedAt: null };
@@ -265,6 +264,7 @@ const FloatingTimer = () => {
   });
 
   const [isMinimized, setIsMinimized] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const { time, isRunning, startedAt } = timer;
 
   useEffect(() => {
@@ -278,24 +278,39 @@ const FloatingTimer = () => {
   useEffect(() => {
     if (!isRunning || !startedAt) return;
 
-    const update = () => {
-      const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-      setTimer(prev => ({
-        ...prev,
-        time: prev.time === elapsed + (prev.time - elapsed) ? prev.time : prev.time
-      }));
-    };
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    setNow(Date.now());
 
-    const interval = setInterval(() => {
-      setTimer(prev => ({
-        ...prev,
-        time: prev.time + 1
-      }));
-    }, 1000);
-
-    update();
     return () => clearInterval(interval);
   }, [isRunning, startedAt]);
+
+  const elapsed = isRunning && startedAt
+    ? Math.max(0, Math.floor((now - startedAt) / 1000))
+    : 0;
+  const displayTime = time + elapsed;
+
+  const toggleTimer = () => {
+    setTimer(prev => {
+      if (prev.isRunning && prev.startedAt) {
+        const elapsedSinceStart = Math.max(
+          0,
+          Math.floor((Date.now() - prev.startedAt) / 1000)
+        );
+
+        return {
+          time: prev.time + elapsedSinceStart,
+          isRunning: false,
+          startedAt: null
+        };
+      }
+
+      return {
+        ...prev,
+        isRunning: true,
+        startedAt: Date.now()
+      };
+    });
+  };
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -317,11 +332,9 @@ const FloatingTimer = () => {
         // Minimized View
         <div className="flex items-center gap-3 w-full" onClick={(e) => { if((e.target as HTMLElement).tagName !== 'BUTTON' && (e.target as HTMLElement).closest('button') === null) setIsMinimized(false); }}>
           <TimerIcon size={16} className={`text-amber-500 ${isRunning ? 'animate-pulse' : ''}`} />
-          <span className="font-mono font-bold text-slate-100 text-sm tracking-wider">{formatTime(time)}</span>
+          <span className="font-mono font-bold text-slate-100 text-sm tracking-wider">{formatTime(displayTime)}</span>
           <div className="flex items-center gap-1 border-l border-slate-700 pl-3 ml-1">
-            <button onClick={() => setTimer(prev => prev.isRunning
-                ? { ...prev, isRunning: false, startedAt: null }
-                : { ...prev, isRunning: true, startedAt: Date.now() })} className="text-slate-400 hover:text-amber-500 p-1">
+            <button onClick={toggleTimer} className="text-slate-400 hover:text-amber-500 p-1">
               {isRunning ? <Pause size={14} /> : <Play size={14} />}
             </button>
             <button onClick={() => setIsMinimized(false)} className="text-slate-400 hover:text-white p-1">
