@@ -1,3 +1,5 @@
+export type SubtopicStatus = 'Not Started' | 'Learning' | 'Completed' | 'Revision';
+
 export type MasterExamFilter =
   | 'All Exams'
   | 'SSC CHSL'
