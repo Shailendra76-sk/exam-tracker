@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, 
   PenTool, 
@@ -273,7 +273,33 @@ const FloatingTimer = () => {
 
   const [isMinimized, setIsMinimized] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStart = useRef({ x: 0, y: 0 });
+  const dragOrigin = useRef({ x: 0, y: 0 });
   const { time, isRunning, startedAt } = timer;
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest('button')) return;
+
+    dragStart.current = { x: event.clientX, y: event.clientY };
+    dragOrigin.current = dragOffset;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+
+    setDragOffset({
+      x: dragOrigin.current.x + event.clientX - dragStart.current.x,
+      y: dragOrigin.current.y + event.clientY - dragStart.current.y,
+    });
+  };
+
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -331,14 +357,31 @@ const FloatingTimer = () => {
   };
 
   return (
-    <div className={`fixed z-[9998] transition-all duration-300 shadow-2xl border border-slate-700/50 ${
+    <div
+      className={`fixed z-[9998] transition-all duration-300 shadow-2xl border border-slate-700/50 select-none ${
       isMinimized 
         ? 'bottom-24 right-6 bg-slate-900/90 backdrop-blur-sm rounded-full px-4 py-2.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800'
         : 'bottom-24 right-6 bg-slate-900 rounded-2xl p-5 w-64'
-    }`}>
+    }`}
+      style={{ transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)` }}
+    >
       {isMinimized ? (
         // Minimized View
-        <div className="flex items-center gap-3 w-full" onClick={(e) => { if((e.target as HTMLElement).tagName !== 'BUTTON' && (e.target as HTMLElement).closest('button') === null) setIsMinimized(false); }}>
+        <div
+          className="flex items-center gap-3 w-full cursor-grab touch-none active:cursor-grabbing"
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+          onDoubleClick={() => setDragOffset({ x: 0, y: 0 })}
+          onClick={(e) => {
+            if (
+              (e.target as HTMLElement).tagName !== 'BUTTON' &&
+              (e.target as HTMLElement).closest('button') === null
+            ) {
+              setIsMinimized(false);
+            }
+          }}
+        >
           <TimerIcon size={16} className={`text-amber-500 ${isRunning ? 'animate-pulse' : ''}`} />
           <span className="font-mono font-bold text-slate-100 text-sm tracking-wider">{formatTime(displayTime)}</span>
           <div className="flex items-center gap-1 border-l border-slate-700 pl-3 ml-1">
@@ -353,7 +396,12 @@ const FloatingTimer = () => {
       ) : (
         // Expanded View
         <>
-          <div className="flex justify-between items-center mb-4">
+          <div
+            className="flex justify-between items-center mb-4 cursor-grab touch-none active:cursor-grabbing"
+            onPointerDown={startDrag}
+            onPointerMove={moveDrag}
+            onPointerUp={endDrag}
+          >
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
               <TimerIcon size={16} className={`text-amber-500 ${isRunning ? 'animate-pulse' : ''}`} /> Study Timer
             </div>
