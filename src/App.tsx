@@ -342,6 +342,17 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
     }
   }, [defaultExam, exam]);
 
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') resolve(reader.result);
+        else reject(new Error('Unable to read attachment.'));
+      };
+      reader.onerror = () => reject(reader.error || new Error('Unable to read attachment.'));
+      reader.readAsDataURL(file);
+    });
+
   const sendMessage = async () => {
     const text = input.trim();
     if ((!text && !attachment) || isSending) return;
@@ -360,9 +371,21 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
     setIsSending(true);
 
     try {
+      const attachmentPayload = outgoingAttachment
+        ? {
+            name: outgoingAttachment.name,
+            type: outgoingAttachment.type,
+            dataUrl: await readFileAsDataUrl(outgoingAttachment)
+          }
+        : undefined;
+
       const attachmentNote = outgoingAttachment
-        ? `\n\n[Attachment: ${outgoingAttachment.name}. The current Phase 4 AI endpoint receives the study context and chat text; file bytes are not uploaded yet.]`
+        ? '[Attached file: ' + outgoingAttachment.name + '. Analyze the uploaded file directly and explain only what is supported by its contents.]'
         : '';
+
+      const history = [...messages, { role: 'user' as const, content: text || 'Is file ko analyze karo.' }]
+        .slice(-20)
+        .map(message => ({ role: message.role, content: message.content }));
 
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -371,10 +394,9 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
           exam: exam === 'Any Exam' ? defaultExam : exam,
           subject,
           mode,
-          studyContext: studyContext + attachmentNote,
-          messages: [...messages, { role: 'user', content: text + attachmentNote }]
-            .slice(-20)
-            .map(message => ({ role: message.role, content: message.content }))
+          studyContext: studyContext + (attachmentNote ? '\\n\\n' + attachmentNote : ''),
+          messages: history,
+          attachment: attachmentPayload
         }),
       });
 
@@ -394,7 +416,7 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: 'AI service se response nahi mila. API configuration check karo aur dobara try karo.'
+        content: error instanceof Error ? error.message : 'AI service se response nahi mila.'
       }]);
     } finally {
       setIsSending(false);
@@ -404,8 +426,13 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
   const handleFile = (file: File) => {
     const isImage = file.type.startsWith('image/');
     const isPdf = file.type === 'application/pdf';
+    const maxBytes = 2_500_000;
     if (!isImage && !isPdf) {
       alert('Sirf Image ya PDF upload karein.');
+      return;
+    }
+    if (file.size > maxBytes) {
+      alert('Image/PDF maximum 2.5 MB ka hona chahiye.');
       return;
     }
     setAttachment(file);
@@ -487,7 +514,7 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
           <div className="flex items-center gap-2 min-w-0">
             {attachment.type.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-sky-400" /> : <FileText className="w-4 h-4 text-rose-400" />}
             <span className="text-xs text-slate-300 truncate">{attachment.name}</span>
-            <span className="text-[10px] text-slate-500">metadata only</span>
+            <span className="text-[10px] text-emerald-400">ready to analyze</span>
           </div>
           <button onClick={() => setAttachment(null)} className="text-slate-500 hover:text-white"><XCircle className="w-4 h-4" /></button>
         </div>
