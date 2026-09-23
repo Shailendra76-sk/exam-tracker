@@ -20,18 +20,19 @@ export default async function handler(
   // CORS / basic response headers
   // --------------------------------------------------
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "POST, OPTIONS"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type"
-  );
+  // The app uses the same origin, so CORS is opt-in for a configured frontend origin.
+  const requestOrigin = req.headers.origin;
+  const allowedOrigin = process.env.APP_ORIGIN;
+
+  if (allowedOrigin && requestOrigin === allowedOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Vary", "Origin");
+  }
 
   if (req.method === "OPTIONS") {
-    return res.status(200).end();
+    return res.status(204).end();
   }
 
   if (req.method !== "POST") {
@@ -69,6 +70,21 @@ export default async function handler(
 
     const body = req.body as RequestBody;
 
+    if (!body || typeof body !== "object") {
+      return res.status(400).json({
+        success: false,
+        error: "A JSON request body is required.",
+      });
+    }
+
+    const serializedBody = JSON.stringify(body);
+    if (serializedBody.length > 120_000) {
+      return res.status(413).json({
+        success: false,
+        error: "Request payload is too large.",
+      });
+    }
+
     if (
       !body.messages ||
       !Array.isArray(body.messages) ||
@@ -80,13 +96,53 @@ export default async function handler(
       });
     }
 
+    if (body.messages.length > 30) {
+      return res.status(400).json({
+        success: false,
+        error: "Too many messages in one request.",
+      });
+    }
+
+    const allowedModes = ["Ask", "Learn", "Practice", "Test"] as const;
+    const mode = body.mode || "Ask";
+
+    if (!allowedModes.includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid study mode.",
+      });
+    }
+
+    let totalMessageChars = 0;
+    for (const message of body.messages) {
+      if (
+        !message ||
+        !["user", "assistant", "system"].includes(message.role) ||
+        typeof message.content !== "string" ||
+        message.content.length > 8_000
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid message format or message too long.",
+        });
+      }
+
+      totalMessageChars += message.content.length;
+    }
+
+    if (totalMessageChars > 60_000) {
+      return res.status(400).json({
+        success: false,
+        error: "Conversation payload is too large.",
+      });
+    }
+
     // --------------------------------------------------
     // Study context
     // --------------------------------------------------
 
-    const exam = body.exam || "Any Exam";
-    const subject = body.subject || "Any Subject";
-    const mode = body.mode || "Ask";
+    const exam = String(body.exam || "Any Exam").trim().slice(0, 100);
+    const subject = String(body.subject || "Any Subject").trim().slice(0, 100);
 
     const systemPrompt = `
 You are an AI Study Assistant inside an exam preparation platform.
@@ -175,10 +231,9 @@ Rules:
         errorText
       );
 
-      return res.status(response.status).json({
+      return res.status(502).json({
         success: false,
         error: "AI provider request failed.",
-        providerStatus: response.status,
       });
     }
 
