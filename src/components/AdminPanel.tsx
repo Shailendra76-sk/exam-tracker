@@ -44,7 +44,7 @@ type AdminPanelProps = {
 };
 
 const DEFAULT_SETTINGS: AdminSettings = {
-  supabaseUrl: '',
+  supabaseUrl: 'https://kmaesiinprjlxpuphefs.supabase.co',
   supabaseAnonKey: '',
   aiProvider: 'OpenAI',
   aiApiKey: '',
@@ -64,14 +64,35 @@ const isProvider = (value: unknown): value is AIProvider =>
 
 const loadSettings = (): AdminSettings => {
   if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+
   try {
     const raw = window.localStorage.getItem(ADMIN_SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<AdminSettings>;
+    const parsed = raw ? (JSON.parse(raw) as Partial<AdminSettings>) : {};
+
+    const envUrl =
+      typeof import.meta.env.VITE_SUPABASE_URL === 'string'
+        ? import.meta.env.VITE_SUPABASE_URL.trim()
+        : '';
+
+    const envKey =
+      typeof import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY === 'string'
+        ? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.trim()
+        : '';
+
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
-      aiProvider: isProvider(parsed.aiProvider) ? parsed.aiProvider : DEFAULT_SETTINGS.aiProvider,
+      supabaseUrl:
+        typeof parsed.supabaseUrl === 'string' && parsed.supabaseUrl.trim()
+          ? parsed.supabaseUrl.trim()
+          : envUrl || DEFAULT_SETTINGS.supabaseUrl,
+      supabaseAnonKey:
+        typeof parsed.supabaseAnonKey === 'string' && parsed.supabaseAnonKey.trim()
+          ? parsed.supabaseAnonKey.trim()
+          : envKey,
+      aiProvider: isProvider(parsed.aiProvider)
+        ? parsed.aiProvider
+        : DEFAULT_SETTINGS.aiProvider,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -89,17 +110,32 @@ const maskKey = (value: string) => {
 async function testSupabaseConnection(settings: AdminSettings) {
   const baseUrl = normalizeUrl(settings.supabaseUrl);
   const anonKey = settings.supabaseAnonKey.trim();
-  if (!baseUrl || !/^https?:\/\/[^\s/]+/i.test(baseUrl) || !anonKey) {
-    throw new Error('Project URL aur Anon/Public API Key required hai.');
+
+  if (!baseUrl || !/^https?:\/\/[^\s/]+/i.test(baseUrl)) {
+    throw new Error('Supabase Project URL invalid hai.');
   }
-  const response = await fetch(baseUrl + '/rest/v1/', {
+
+  if (!anonKey) {
+    throw new Error(
+      'Supabase Anon/Public API Key required hai. Vercel me VITE_SUPABASE_PUBLISHABLE_KEY set karo ya key yahan enter karo.',
+    );
+  }
+
+  const response = await fetch(baseUrl + '/auth/v1/settings', {
     method: 'GET',
     headers: {
       apikey: anonKey,
       Authorization: 'Bearer ' + anonKey,
     },
   });
-  if (!response.ok) throw new Error('Supabase returned HTTP ' + response.status + '.');
+
+  if (!response.ok) {
+    throw new Error(
+      response.status === 401 || response.status === 403
+        ? 'Supabase URL reachable hai, lekin Anon/Public API Key invalid hai.'
+        : 'Supabase returned HTTP ' + response.status + '.',
+    );
+  }
 }
 
 async function syncSupabaseTable(
@@ -186,7 +222,13 @@ export default function AdminPanel({ dailyLogs, mocks, syllabus }: AdminPanelPro
     setConnection('checking');
     setConnectionMessage('Supabase connection check ho raha hai...');
     try {
-      await testSupabaseConnection(settings);
+      const latest = loadSettings();
+      const testSettings = {
+        ...latest,
+        supabaseUrl: settings.supabaseUrl.trim() || latest.supabaseUrl,
+        supabaseAnonKey: settings.supabaseAnonKey.trim() || latest.supabaseAnonKey,
+      };
+      await testSupabaseConnection(testSettings);
       setConnection('connected');
       setConnectionMessage('Connected Successfully');
     } catch (error) {
