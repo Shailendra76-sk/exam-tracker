@@ -955,7 +955,7 @@ export default function App() {
       <div className="space-y-6 animate-in fade-in duration-500">
         <div>
           <h2 className="text-2xl font-bold text-slate-100 font-serif">Daily Study Log</h2>
-          <p className="text-slate-400 text-sm mt-1">Har subject ke roz ke topic, hours aur self-notes track karo • View: ${selectedExam}</p>
+          <p className="text-slate-400 text-sm mt-1">Har subject ke roz ke topic, hours aur self-notes track karo • View: {selectedExam}</p>
         </div>
         
         <form onSubmit={handleAddLog} className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm space-y-4">
