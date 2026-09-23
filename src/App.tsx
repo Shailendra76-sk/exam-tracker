@@ -625,6 +625,8 @@ export default function App() {
   const [selectedExam, setSelectedExam] = usePersistentState("selectedExam", "All Exams");
   const [plannerGoalHours, setPlannerGoalHours] = usePersistentState("plannerGoalHours", 5);
   const [plannerDone, setPlannerDone] = usePersistentState<Record<string, boolean>>("plannerDone", {});
+  const [dailyFormExam, setDailyFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
+  const [pyqFormExam, setPyqFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
 
   const navItems = [
     { id: 'dashboard', num: '01', label: 'Dashboard & Analytics', icon: LayoutDashboard },
@@ -1066,14 +1068,14 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam</label>
-              <select required name="exam" defaultValue={selectedExam === "All Exams" ? "SSC CHSL" : selectedExam} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
+              <select required name="exam" value={dailyFormExam} onChange={e => setDailyFormExam(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
                 {Object.keys(EXAM_SUBJECTS).filter(e => e !== "All Exams").map(exam => <option key={exam}>{exam}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
               <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
-                {getSubjectsForExam(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam).map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                {getSubjectsForExam(dailyFormExam).map(subject => <option key={subject} value={subject}>{subject}</option>)}
               </select>
             </div>
             <div>
@@ -1344,14 +1346,14 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam</label>
-              <select required name="exam" defaultValue={selectedExam === "All Exams" ? "SSC CHSL" : selectedExam} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+              <select required name="exam" value={pyqFormExam} onChange={e => setPyqFormExam(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
                 {Object.keys(EXAM_SUBJECTS).filter(e => e !== "All Exams").map(exam => <option key={exam}>{exam}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
               <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
-                {getSubjectsForExam(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam).map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                {getSubjectsForExam(pyqFormExam).map(subject => <option key={subject} value={subject}>{subject}</option>)}
               </select>
             </div>
             <div>
