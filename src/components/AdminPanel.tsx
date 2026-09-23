@@ -45,7 +45,7 @@ type AdminPanelProps = {
 
 const DEFAULT_SETTINGS: AdminSettings = {
   supabaseUrl: 'https://kmaesiinprjlxpuphefs.supabase.co',
-  supabaseAnonKey: '',
+  supabaseAnonKey: 'sb_publishable_IYN7gQW0Isz2BA_BIhu1cg_MdMECRbB',
   aiProvider: 'OpenAI',
   aiApiKey: '',
   aiModel: 'gpt-4o-mini',
