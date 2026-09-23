@@ -627,6 +627,7 @@ export default function App() {
   const [plannerDone, setPlannerDone] = usePersistentState<Record<string, boolean>>("plannerDone", {});
   const [dailyFormExam, setDailyFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
   const [pyqFormExam, setPyqFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
+  const [mockFormExam, setMockFormExam] = useState(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam);
 
   useEffect(() => {
     const migrationKey = "field-log:v1:exam-migration-1";
@@ -1175,7 +1176,10 @@ export default function App() {
       const correct = Number(formData.get('correct'));
       const incorrect = Number(formData.get('incorrect'));
 
-      const values = [totalScore, maths, reasoning, lang, ga, correct, incorrect];
+      const section3Label = mockFormExam === "RRB Group D" ? "Science" : mockFormExam === "UP Lekhpal" ? "Hindi" : "Language";
+    const section4Label = "GK / GA";
+
+    const values = [totalScore, maths, reasoning, lang, ga, correct, incorrect];
       if (!date || !type || values.some(value => !Number.isFinite(value) || value < 0) || correct + incorrect === 0) {
         alert('Please enter valid non-negative mock scores and at least one attempted question.');
         return;
@@ -1201,7 +1205,7 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam Type</label>
-              <select required name="type" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+              <select required name="type" value={mockFormExam} onChange={e => setMockFormExam(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
                 <option value="SSC GD">SSC GD</option>
                 <option value="SSC MTS">SSC MTS</option>
                 <option value="RRB Group D">RRB Group D</option>
@@ -1232,11 +1236,11 @@ export default function App() {
               <input required name="reasoning" type="number" min="0" placeholder="45" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Language</label>
+              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">{section3Label}</label>
               <input required name="lang" type="number" min="0" placeholder="30" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">GA / GK</label>
+              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">{section4Label}</label>
               <input required name="ga" type="number" min="0" placeholder="20" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
             </div>
             <div>
