@@ -297,7 +297,7 @@ const FloatingTimer = () => {
 
 
 // --- 8. AI STUDY BOT ---
-const AIStudyBot = () => {
+const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defaultExam: string }) => {
   type Message = {
     id: string;
     role: 'user' | 'assistant';
@@ -321,6 +321,12 @@ const AIStudyBot = () => {
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    if (defaultExam && defaultExam !== 'All Exams' && exam === 'Any Exam') {
+      setExam(defaultExam);
+    }
+  }, [defaultExam, exam]);
+
   const sendMessage = async () => {
     const text = input.trim();
     if ((!text && !attachment) || isSending) return;
@@ -333,20 +339,50 @@ const AIStudyBot = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const outgoingAttachment = attachment;
     setInput('');
     setAttachment(null);
     setIsSending(true);
 
-    // Backend/API Step-2 ke liye ready placeholder.
-    // API key frontend mein nahi rakhi jayegi.
-    setTimeout(() => {
+    try {
+      const attachmentNote = outgoingAttachment
+        ? `\n\n[Attachment: ${outgoingAttachment.name}. The current Phase 4 AI endpoint receives the study context and chat text; file bytes are not uploaded yet.]`
+        : '';
+
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exam: exam === 'Any Exam' ? defaultExam : exam,
+          subject,
+          mode,
+          studyContext: studyContext + attachmentNote,
+          messages: [...messages, { role: 'user', content: text + attachmentNote }]
+            .map(message => ({ role: message.role, content: message.content }))
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data?.success || typeof data.answer !== 'string') {
+        throw new Error(data?.error || 'AI service request failed.');
+      }
+
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Demo response: ${exam} / ${subject} / ${mode} context receive ho gaya. Agle backend step mein yahi request selected AI provider ko bheji jayegi.`
+        content: data.answer
       }]);
+    } catch (error) {
+      console.error('AI Study Bot request failed:', error);
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'AI service se response nahi mila. API configuration check karo aur dobara try karo.'
+      }]);
+    } finally {
       setIsSending(false);
-    }, 450);
+    }
   };
 
   const handleFile = (file: File) => {
@@ -369,7 +405,7 @@ const AIStudyBot = () => {
             </div>
             <div>
               <h2 className="font-bold text-slate-100">AI Study Bot</h2>
-              <p className="text-xs text-slate-500">Any Exam • Any Subject • Image • PDF • Study Practice</p>
+              <p className="text-xs text-slate-500">Your Exam Data • AI Learning • Practice • Analysis</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-2 text-xs text-emerald-400">
@@ -411,7 +447,7 @@ const AIStudyBot = () => {
       </div>
 
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto">
-        {['Mujhe is topic ko padhaao', '10 MCQ poochho', 'Is question ko samjhao', 'Is PDF se test lo'].map(suggestion => (
+        {['Aaj mujhe kya padhna chahiye?', 'Meri weak topics batao', 'Mera mock performance analyze karo', '10 MCQ poochho'].map(suggestion => (
           <button key={suggestion} onClick={() => setInput(suggestion)} className="whitespace-nowrap px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900 text-xs text-slate-400 hover:text-slate-200 hover:border-amber-500">
             {suggestion}
           </button>
@@ -423,6 +459,7 @@ const AIStudyBot = () => {
           <div className="flex items-center gap-2 min-w-0">
             {attachment.type.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-sky-400" /> : <FileText className="w-4 h-4 text-rose-400" />}
             <span className="text-xs text-slate-300 truncate">{attachment.name}</span>
+            <span className="text-[10px] text-slate-500">metadata only</span>
           </div>
           <button onClick={() => setAttachment(null)} className="text-slate-500 hover:text-white"><XCircle className="w-4 h-4" /></button>
         </div>
@@ -489,6 +526,58 @@ export default function App() {
       setSyllabus(resetSyllabus);
     }
   };
+
+  // --- AI STUDY CONTEXT ---
+  const aiStudyContext = (() => {
+    const exam = selectedExam === 'All Exams' ? 'All Exams' : selectedExam;
+    const subjects = EXAM_SUBJECTS[exam] || EXAM_SUBJECTS['All Exams'];
+    const syllabusSummary = subjects.map(subject => {
+      const topics = syllabus[subject] || [];
+      const completed = topics.filter(t => t.completed).length;
+      const pending = topics.filter(t => !t.completed).slice(0, 6).map(t => t.name);
+      return `${subject}: ${completed}/${topics.length} completed; pending: ${pending.join(', ') || 'none'}`;
+    }).join('\n');
+
+    const weakSummary = [...weakTopics]
+      .filter(topic => exam === 'All Exams' || !topic.exam || topic.exam === 'All Exams' || topic.exam === exam)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+      .map(topic => `${topic.subject} - ${topic.topic} (${topic.count} mistakes)`)
+      .join('\n');
+
+    const recentStudy = [...dailyLogs]
+      .filter(log => exam === 'All Exams' || !log.exam || log.exam === 'All Exams' || log.exam === exam)
+      .slice(0, 8)
+      .map(log => `${log.date}: ${log.subject} - ${log.topic} - ${Number(log.hours).toFixed(1)}h`)
+      .join('\n');
+
+    const recentMocks = [...mocks]
+      .filter(mock => exam === 'All Exams' || mock.type === exam)
+      .slice(0, 5)
+      .map(mock => `${mock.date}: ${mock.type} score=${mock.totalScore}, correct=${mock.correct}, wrong=${mock.incorrect}`)
+      .join('\n');
+
+    const recentPyq = [...pyqLogs]
+      .filter(log => exam === 'All Exams' || !log.exam || log.exam === 'All Exams' || log.exam === exam)
+      .slice(0, 5)
+      .map(log => `${log.date}: ${log.subject} - ${log.topic || 'topic not tagged'} - ${log.sets} sets - ${log.shiftYear}`)
+      .join('\n');
+
+    return [
+      `Target exam: ${exam}`,
+      `Selected subjects: ${subjects.join(', ')}`,
+      'Syllabus progress:',
+      syllabusSummary || 'No syllabus data.',
+      'Weak topics:',
+      weakSummary || 'No weak topics logged.',
+      'Recent study:',
+      recentStudy || 'No study log yet.',
+      'Recent mocks:',
+      recentMocks || 'No mock yet.',
+      'Recent PYQ:',
+      recentPyq || 'No PYQ log yet.'
+    ].join('\n');
+  })();
 
   // --- 1. DASHBOARD & ANALYTICS ---
   const renderDashboard = () => {
@@ -1638,7 +1727,7 @@ export default function App() {
           {activeTab === 'weak' && renderWeakTopics()}
           {activeTab === 'syllabus' && renderSyllabus()}
           {activeTab === 'planner' && renderSmartPlanner()}
-          {activeTab === 'ai-bot' && <AIStudyBot />}
+          {activeTab === 'ai-bot' && <AIStudyBot studyContext={aiStudyContext} defaultExam={selectedExam} />}
         </div>
       </main>
 
