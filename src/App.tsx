@@ -309,7 +309,7 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Namaste! Main AI Study Bot hoon. Kisi bhi exam, subject ya topic ke baare mein poochho. Aap Image/PDF upload karke bhi uske content par baat kar sakte ho.'
+      content: 'Namaste! Main AI Study Bot hoon. Kisi bhi exam, subject ya topic ke baare mein poochho. Tracker ka syllabus, PYQ, mock aur weak-topic data bhi mere context mein rahega.'
     }
   ]);
   const [input, setInput] = useState('');
