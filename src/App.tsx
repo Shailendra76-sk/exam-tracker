@@ -547,7 +547,9 @@ export default function App() {
             ? TIMER_STORAGE_KEY
             : key === "masterSyllabusMaths"
               ? "field-log:v2:master-syllabus:maths"
-              : `field-log:v1:${key}`;
+              : key === "masterSyllabus"
+                ? "field-log:v3:master-syllabus"
+                : `field-log:v1:${key}`;
           window.localStorage.setItem(storageKey, JSON.stringify(data[key]));
         }
       });
