@@ -1463,11 +1463,11 @@ export default function App() {
   // --- 5. SMART STUDY PLANNER ---
   const renderSmartPlanner = () => {
     const today = new Date().toISOString().split('T')[0];
-    const exam = selectedExam === "All Exams" ? "SSC CHSL" : selectedExam;
+    const exam = selectedExam;
     const subjects = EXAM_SUBJECTS[selectedExam] || EXAM_SUBJECTS["All Exams"];
 
     const filteredWeak = weakTopics
-      .filter(w => selectedExam === "All Exams" || !w.exam || w.exam === "All Exams" || w.exam === exam)
+      .filter(w => selectedExam === "All Exams" || !w.exam || w.exam === "All Exams" || w.exam === selectedExam)
       .sort((a, b) => b.count - a.count);
 
     const incompleteTasks = subjects.flatMap(subject =>
@@ -1485,7 +1485,7 @@ export default function App() {
 
     const revisionCandidates = dailyLogs
       .filter(log => {
-        if (selectedExam !== "All Exams" && log.exam && log.exam !== "All Exams" && log.exam !== exam) return false;
+        if (selectedExam !== "All Exams" && log.exam && log.exam !== "All Exams" && log.exam !== selectedExam) return false;
         const age = (Date.now() - new Date(log.date).getTime()) / 86400000;
         return age >= 2;
       })
@@ -1509,12 +1509,12 @@ export default function App() {
     }));
 
     const latestMock = mocks
-      .filter(mock => selectedExam === "All Exams" || mock.type === exam)
+      .filter(mock => selectedExam === "All Exams" || mock.type === selectedExam)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
     const mockAge = latestMock ? (Date.now() - new Date(latestMock.date).getTime()) / 86400000 : Infinity;
     const mockTask = mockAge >= 7 ? [{
-      id: `mock-${exam}`,
+      id: `mock-${selectedExam}`,
       type: "Mock",
       title: "1 Full Mock Test",
       subtitle: latestMock ? `No full mock in ${Math.floor(mockAge)} days` : "No mock logged yet",
@@ -1532,7 +1532,7 @@ export default function App() {
     const completedTasks = activeTasks.filter(task => plannerDone[task.key]).length;
     const goalHours = Math.max(1, Number(plannerGoalHours) || 5);
     const todayHours = dailyLogs
-      .filter(log => log.date === today && (selectedExam === "All Exams" || !log.exam || log.exam === "All Exams" || log.exam === exam))
+      .filter(log => log.date === today && (selectedExam === "All Exams" || !log.exam || log.exam === "All Exams" || log.exam === selectedExam))
       .reduce((sum, log) => sum + Number(log.hours), 0);
     const hourPercent = Math.min(100, Math.round((todayHours / goalHours) * 100));
 
