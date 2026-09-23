@@ -88,6 +88,11 @@ const SUBJECT_META: Record<
     short: 'General Hindi',
     active: 'border-rose-500 bg-rose-500/10 text-rose-300',
   },
+  Computer: {
+    emoji: '🖥️',
+    short: 'Computer',
+    active: 'border-cyan-500 bg-cyan-500/10 text-cyan-300',
+  },
 };
 
 const allSubtopicIds = MASTER_SUBJECTS.flatMap(subject =>
@@ -201,6 +206,7 @@ const MasterSyllabus = ({
     'error-spotting': true,
     'indian-history': true,
     sandhi: true,
+    'computer-basics': true,
   });
   const importRef = useRef<HTMLInputElement | null>(null);
 
@@ -657,7 +663,7 @@ const MasterSyllabus = ({
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-xs text-slate-500">
         <span className="text-slate-300 font-semibold">Status loop:</span>{' '}
-        Not Started → Learning → Completed → Revision → Not Started. Progress all five subjects ke liye independently browser me save hoti hai.
+        Not Started → Learning → Completed → Revision → Not Started. Progress all six subjects ke liye independently browser me save hoti hai.
       </div>
     </div>
   );
