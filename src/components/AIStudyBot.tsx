@@ -105,6 +105,7 @@ const buildTrackerSnapshot = (): TrackerSnapshot => {
 
   const masterProgress = readJson([
     'syllabusProgress',
+    'field-log:v3:master-syllabus',
     'field-log:v2:master-syllabus:maths',
   ]);
 
@@ -149,8 +150,20 @@ const buildTrackerSnapshot = (): TrackerSnapshot => {
   let syllabusTotal = 0;
   let syllabusCompleted = 0;
 
-  if (masterProgress && typeof masterProgress === 'object' && !Array.isArray(masterProgress)) {
-    Object.values(masterProgress as Record<string, unknown>).forEach(value => {
+  const masterProgressSource =
+    masterProgress &&
+    typeof masterProgress === 'object' &&
+    !Array.isArray(masterProgress) &&
+    'progress' in (masterProgress as Record<string, unknown>)
+      ? (masterProgress as { progress?: unknown }).progress
+      : masterProgress;
+
+  if (
+    masterProgressSource &&
+    typeof masterProgressSource === 'object' &&
+    !Array.isArray(masterProgressSource)
+  ) {
+    Object.values(masterProgressSource as Record<string, unknown>).forEach(value => {
       if (!['Not Started', 'Learning', 'Completed', 'Revision'].includes(String(value))) return;
       syllabusTotal += 1;
       if (value === 'Completed') syllabusCompleted += 1;
