@@ -969,7 +969,7 @@ export default function App() {
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
               <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
-                {getSubjectsForExam(selectedLogExam || (selectedExam === "All Exams" ? "SSC CHSL" : selectedExam)).map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                {getSubjectsForExam(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam).map(subject => <option key={subject} value={subject}>{subject}</option>)}
               </select>
             </div>
             <div>
@@ -1239,7 +1239,7 @@ export default function App() {
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
               <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
-                {getSubjectsForExam(String((document.querySelector('select[name="exam"]') as HTMLSelectElement | null)?.value || (selectedExam === "All Exams" ? "SSC CHSL" : selectedExam))).map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                {getSubjectsForExam(selectedExam === "All Exams" ? "SSC CHSL" : selectedExam).map(subject => <option key={subject} value={subject}>{subject}</option>)}
               </select>
             </div>
             <div>
