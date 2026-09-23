@@ -42,12 +42,28 @@ type TrackerSnapshot = {
   }>;
 };
 
+type AIProvider =
+  | 'OpenAI'
+  | 'OpenRouter'
+  | 'NVIDIA NIM'
+  | 'Free Tier API (Groq/Gemini)';
+
+type ProviderConfig = {
+  provider: AIProvider;
+  apiKey: string;
+  model: string;
+  endpoint: string;
+};
+
 type AIStudyBotProps = {
   apiEndpoint?: string;
   selectedExam?: string;
   defaultExam?: string;
   studyContext?: string;
 };
+
+const ADMIN_SETTINGS_KEY = 'field-log:v1:admin-settings';
+const ADMIN_SETTINGS_EVENT = 'field-log:admin-settings-updated';
 
 const CHAT_KEY = 'field-log:v1:aiMessages';
 const MAX_FILE_BYTES = 2_500_000;
@@ -62,6 +78,39 @@ const STATUS_VALUES = new Set([
 
 const WELCOME_MESSAGE =
   'Namaste bhai! Main tumhara personal exam coach hoon. Mock, syllabus aur weak topics ke basis par seedha actionable plan dunga.';
+const isAIProvider = (value: unknown): value is AIProvider =>
+  value === 'OpenAI' ||
+  value === 'OpenRouter' ||
+  value === 'NVIDIA NIM' ||
+  value === 'Free Tier API (Groq/Gemini)';
+
+const loadProviderConfig = (): ProviderConfig | null => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(ADMIN_SETTINGS_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const provider = parsed.aiProvider;
+    const apiKey = typeof parsed.aiApiKey === 'string' ? parsed.aiApiKey.trim() : '';
+    const model = typeof parsed.aiModel === 'string' ? parsed.aiModel.trim() : '';
+    const endpoint = typeof parsed.aiEndpoint === 'string' ? parsed.aiEndpoint.trim() : '';
+
+    if (!isAIProvider(provider) || !apiKey || !model || !endpoint) {
+      return null;
+    }
+
+    return {
+      provider,
+      apiKey,
+      model,
+      endpoint,
+    };
+  } catch {
+    return null;
+  }
+};
 
 const createId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -395,6 +444,9 @@ export default function AIStudyBot({
   const [mode, setMode] = useState<StudyMode>('Ask');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
+  const [providerConfig, setProviderConfig] = useState<ProviderConfig | null>(
+    loadProviderConfig,
+  );
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -407,6 +459,21 @@ export default function AIStudyBot({
       setExam(nextExam);
     }
   }, [defaultExam, selectedExam]);
+
+  useEffect(() => {
+    const refreshProviderConfig = () => {
+      setProviderConfig(loadProviderConfig());
+    };
+
+    refreshProviderConfig();
+    window.addEventListener(ADMIN_SETTINGS_EVENT, refreshProviderConfig);
+    window.addEventListener('storage', refreshProviderConfig);
+
+    return () => {
+      window.removeEventListener(ADMIN_SETTINGS_EVENT, refreshProviderConfig);
+      window.removeEventListener('storage', refreshProviderConfig);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -525,6 +592,14 @@ export default function AIStudyBot({
           studyContext,
         ),
         messages: history,
+        providerConfig: providerConfig
+          ? {
+              provider: providerConfig.provider,
+              apiKey: providerConfig.apiKey,
+              model: providerConfig.model,
+              endpoint: providerConfig.endpoint,
+            }
+          : undefined,
         attachment: outgoing
           ? {
               name: outgoing.name,
@@ -917,7 +992,9 @@ export default function AIStudyBot({
                 {mode} • {exam} • {subject}
               </span>
               <span className="shrink-0">
-                Tracker auto-sync
+                {providerConfig
+                  ? providerConfig.provider + ' • Configured'
+                  : 'Server AI fallback'}
               </span>
             </div>
           </div>
