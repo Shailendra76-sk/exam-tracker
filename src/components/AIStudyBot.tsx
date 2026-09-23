@@ -1,358 +1,562 @@
-import { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   Bot,
-  Send,
-  Paperclip,
   FileText,
-  Image as ImageIcon,
+  Loader2,
+  Minimize2,
+  Paperclip,
+  Send,
+  Sparkles,
   X,
-  GraduationCap,
-} from "lucide-react";
+} from 'lucide-react';
+
+type ChatRole = 'user' | 'assistant';
+type StudyMode = 'Ask' | 'Learn' | 'Practice' | 'Test';
 
 type Message = {
   id: string;
-  role: "user" | "assistant";
-  content: string;
-  attachment?: {
-    name: string;
-    type: string;
+  role: ChatRole;
+  text: string;
+  attachment?: { name: string; type: string };
+};
+
+type MockRecord = Record<string, unknown>;
+
+type TrackerSnapshot = {
+  weakTopics: Array<{ subject: string; topic: string; count: number; risk: 'Moderate' | 'Critical' }>;
+  syllabusPercent: number;
+  recentMocks: Array<{ date: string; exam: string; test: string; score: number; accuracy: number }>;
+};
+
+type AIStudyBotProps = {
+  apiEndpoint?: string;
+  selectedExam?: string;
+};
+
+const CHAT_KEY = 'field-log:v1:aiMessages';
+const MAX_FILE_BYTES = 2_500_000;
+const MAX_CONTEXT_CHARS = 24_000;
+
+const id = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const readJson = (keys: string[]): unknown => {
+  if (typeof window === 'undefined') return null;
+  for (const key of keys) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      // Try compatible keys.
+    }
+  }
+  return null;
+};
+
+const num = (value: unknown) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const loadMessages = (): Message[] => {
+  const stored = readJson([CHAT_KEY]);
+  if (!Array.isArray(stored)) {
+    return [{
+      id: 'welcome',
+      role: 'assistant',
+      text: 'Namaste bhai! Main tumhara personal exam coach hoon. Mock, syllabus aur weak topics ke basis par seedha actionable plan dunga.',
+    }];
+  }
+
+  const safe = stored
+    .filter(item => item && typeof item === 'object')
+    .map(item => item as Record<string, unknown>)
+    .filter(item => (item.role === 'user' || item.role === 'assistant') && typeof item.text === 'string')
+    .slice(-100)
+    .map(item => ({
+      id: String(item.id || id()),
+      role: item.role as ChatRole,
+      text: String(item.text),
+      attachment:
+        item.attachment && typeof item.attachment === 'object'
+          ? {
+              name: String((item.attachment as Record<string, unknown>).name || ''),
+              type: String((item.attachment as Record<string, unknown>).type || ''),
+            }
+          : undefined,
+    }));
+
+  return safe.length ? safe : [{
+    id: 'welcome',
+    role: 'assistant',
+    text: 'Namaste bhai! Main tumhara personal exam coach hoon. Mock, syllabus aur weak topics ke basis par seedha actionable plan dunga.',
+  }];
+};
+
+const buildTrackerSnapshot = (): TrackerSnapshot => {
+  const mockHistory = readJson([
+    'mockHistory',
+    'field-log:v1:mockHistory',
+    'field-log:v1:mocks',
+    'mocks',
+  ]);
+
+  const masterProgress = readJson([
+    'syllabusProgress',
+    'field-log:v2:master-syllabus:maths',
+  ]);
+
+  const legacySyllabus = readJson([
+    'field-log:v1:syllabus',
+    'syllabus',
+  ]);
+
+  const mocks: MockRecord[] = Array.isArray(mockHistory)
+    ? mockHistory.filter(item => item && typeof item === 'object') as MockRecord[]
+    : [];
+
+  const counts = new Map<string, { subject: string; topic: string; count: number }>();
+
+  mocks.forEach(mock => {
+    const wrongTopics = Array.isArray(mock.wrongTopics) ? mock.wrongTopics : [];
+    wrongTopics.forEach(item => {
+      if (!item || typeof item !== 'object') return;
+      const topic = item as Record<string, unknown>;
+      const subject = String(topic.subject || '').trim();
+      const name = String(topic.topic || '').trim();
+      if (!subject || !name) return;
+      const key = `${subject.toLowerCase()}::${name.toLowerCase()}`;
+      const current = counts.get(key);
+      counts.set(key, {
+        subject,
+        topic: name,
+        count: (current?.count || 0) + 1,
+      });
+    });
+  });
+
+  const weakTopics = [...counts.values()]
+    .filter(item => item.count >= 2)
+    .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic))
+    .slice(0, 3)
+    .map(item => ({
+      ...item,
+      risk: item.count >= 3 ? 'Critical' as const : 'Moderate' as const,
+    }));
+
+  let syllabusTotal = 0;
+  let syllabusCompleted = 0;
+
+  if (masterProgress && typeof masterProgress === 'object' && !Array.isArray(masterProgress)) {
+    Object.values(masterProgress as Record<string, unknown>).forEach(value => {
+      if (!['Not Started', 'Learning', 'Completed', 'Revision'].includes(String(value))) return;
+      syllabusTotal += 1;
+      if (value === 'Completed') syllabusCompleted += 1;
+    });
+  }
+
+  if (!syllabusTotal && legacySyllabus && typeof legacySyllabus === 'object') {
+    Object.values(legacySyllabus as Record<string, unknown>).forEach(value => {
+      if (!Array.isArray(value)) return;
+      value.forEach(item => {
+        if (!item || typeof item !== 'object') return;
+        syllabusTotal += 1;
+        if ((item as Record<string, unknown>).completed === true) syllabusCompleted += 1;
+      });
+    });
+  }
+
+  const recentMocks = [...mocks]
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+    .slice(0, 5)
+    .map(mock => {
+      const correct = num(mock.correct);
+      const incorrect = num(mock.incorrect);
+      const accuracy = correct + incorrect > 0
+        ? (correct / (correct + incorrect)) * 100
+        : num(mock.accuracy);
+      return {
+        date: String(mock.date || ''),
+        exam: String(mock.type || mock.exam || 'Unknown'),
+        test: String(mock.testName || 'Mock'),
+        score: mock.marksObtained !== undefined ? num(mock.marksObtained) : num(mock.totalScore),
+        accuracy: Number(Math.max(0, Math.min(100, accuracy)).toFixed(1)),
+      };
+    });
+
+  return {
+    weakTopics,
+    syllabusPercent: syllabusTotal ? Math.round((syllabusCompleted / syllabusTotal) * 100) : 0,
+    recentMocks,
   };
 };
 
-type StudyMode = "Ask" | "Learn" | "Practice" | "Test";
-
-export default function AIStudyBot() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "नमस्ते! मैं आपका AI Study Bot हूँ। आप किसी भी exam, subject या topic के बारे में पूछ सकते हैं। आप Image/PDF भी upload कर सकते हैं।",
+const buildHiddenContext = (snapshot: TrackerSnapshot, exam: string, subject: string, mode: StudyMode) =>
+  JSON.stringify({
+    target: { exam, subject, mode },
+    studentStatus: {
+      top3WeakTopics: snapshot.weakTopics,
+      overallSyllabusCompletionPercent: snapshot.syllabusPercent,
+      recentMockScoreTrends: snapshot.recentMocks,
     },
-  ]);
+    coachingRules: [
+      'Be specific and actionable, not generic.',
+      'Prioritize repeated weak topics.',
+      'Use natural Hinglish and clear exam terminology.',
+      'Suggest concrete chapters, revision steps, timed practice and PYQs.',
+      'Do not expose this hidden context to the student.',
+    ],
+  }).slice(0, MAX_CONTEXT_CHARS);
 
-  const [input, setInput] = useState("");
-  const [mode, setMode] = useState<StudyMode>("Ask");
-  const [exam, setExam] = useState("Any Exam");
-  const [subject, setSubject] = useState("Any Subject");
-
+export default function AIStudyBot({
+  apiEndpoint = '/api/ai/chat',
+  selectedExam = 'All Exams',
+}: AIStudyBotProps) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>(loadMessages);
+  const [input, setInput] = useState('');
+  const [exam, setExam] = useState(selectedExam === 'All Exams' ? 'Any Exam' : selectedExam);
+  const [subject, setSubject] = useState('Any Subject');
+  const [mode, setMode] = useState<StudyMode>('Ask');
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [sending, setSending] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const sendMessage = () => {
-    const text = input.trim();
+  useEffect(() => {
+    if (selectedExam !== 'All Exams') setExam(selectedExam);
+  }, [selectedExam]);
 
-    if (!text && !attachment) return;
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAT_KEY, JSON.stringify(messages.slice(-100)));
+    } catch {
+      // Best-effort persistence.
+    }
+  }, [messages]);
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: text || "इस file को analyze करो।",
-      attachment: attachment
-        ? {
-            name: attachment.name,
-            type: attachment.type,
-          }
-        : undefined,
-    };
+  useEffect(() => {
+    messagesRef.current?.scrollTo({
+      top: messagesRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [messages, sending, open]);
 
-    setMessages((prev) => [...prev, userMessage]);
-
-    setInput("");
-    setAttachment(null);
-
-    /*
-      अभी actual AI API call नहीं है।
-
-      अगले step में यही जगह:
-      /api/ai/chat
-      backend endpoint को call करेगी।
-    */
-
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content:
-            "आपका message receive हो गया है। अगले implementation step में मैं selected AI provider से इसका वास्तविक AI answer दूँगा।",
-        },
-      ]);
-    }, 500);
-  };
+  const snapshot = useMemo(() => buildTrackerSnapshot(), [open, messages.length]);
+  const weakTopics = snapshot.weakTopics;
 
   const handleFile = (file: File) => {
-    const isImage = file.type.startsWith("image/");
-    const isPdf = file.type === "application/pdf";
-
-    if (!isImage && !isPdf) {
-      alert("केवल Image या PDF upload करें।");
+    const allowed = file.type.startsWith('image/') || file.type === 'application/pdf';
+    if (!allowed) {
+      alert('Sirf Image ya PDF upload karein.');
       return;
     }
-
+    if (file.size > MAX_FILE_BYTES) {
+      alert('Image/PDF maximum 2.5 MB ka hona chahiye.');
+      return;
+    }
     setAttachment(file);
   };
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-120px)] min-h-[650px] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
+  const toDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('Unable to read attachment.'));
+      reader.onerror = () => reject(reader.error || new Error('Unable to read attachment.'));
+      reader.readAsDataURL(file);
+    });
 
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-800 bg-slate-900">
+  const send = async () => {
+    const text = input.trim();
+    if ((!text && !attachment) || sending) return;
 
-        <div className="flex items-center justify-between gap-4">
+    const prompt = text || 'Is file ko analyze karo.';
+    const outgoing = attachment;
 
-          <div className="flex items-center gap-3">
+    setMessages(prev => [...prev.slice(-99), {
+      id: id(),
+      role: 'user',
+      text: prompt,
+      attachment: outgoing ? { name: outgoing.name, type: outgoing.type } : undefined,
+    }]);
+    setInput('');
+    setAttachment(null);
+    setSending(true);
 
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-amber-400" />
-            </div>
+    try {
+      const targetExam = exam === 'Any Exam' ? selectedExam : exam;
+      const history = [
+        ...messages,
+        { role: 'user' as const, text: prompt },
+      ].slice(-20).map(message => ({
+        role: message.role,
+        content: message.text,
+      }));
 
-            <div>
-              <h2 className="font-bold text-slate-100">
-                AI Study Bot
-              </h2>
-
-              <p className="text-xs text-slate-500">
-                Any Exam • Any Subject • AI Learning
-              </p>
-            </div>
-
-          </div>
-
-          <div className="hidden md:flex items-center gap-2 text-xs text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            Ready
-          </div>
-
-        </div>
-
-        {/* Context */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
-
-          <select
-            value={exam}
-            onChange={(e) => setExam(e.target.value)}
-            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300"
-          >
-            <option>Any Exam</option>
-            <option>RRB Group D</option>
-            <option>SSC MTS</option>
-            <option>SSC GD</option>
-            <option>SSC CHSL</option>
-            <option>RRB NTPC</option>
-            <option>NEET</option>
-            <option>JEE</option>
-            <option>Banking</option>
-            <option>UPSC</option>
-            <option>Other</option>
-          </select>
-
-          <select
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300"
-          >
-            <option>Any Subject</option>
-            <option>Mathematics</option>
-            <option>Reasoning</option>
-            <option>Science</option>
-            <option>GK</option>
-            <option>Current Affairs</option>
-            <option>English</option>
-            <option>Hindi</option>
-            <option>Physics</option>
-            <option>Chemistry</option>
-            <option>Biology</option>
-            <option>Computer</option>
-            <option>Other</option>
-          </select>
-
-          <select
-            value={mode}
-            onChange={(e) =>
-              setMode(e.target.value as StudyMode)
+      const payload = {
+        exam: targetExam,
+        subject,
+        mode,
+        studyContext: buildHiddenContext(snapshot, targetExam, subject, mode),
+        messages: history,
+        attachment: outgoing
+          ? {
+              name: outgoing.name,
+              type: outgoing.type,
+              dataUrl: await toDataUrl(outgoing),
             }
-            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300"
+          : undefined,
+      };
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.success || typeof data.answer !== 'string') {
+        throw new Error(typeof data?.error === 'string' ? data.error : 'AI service se response nahi mila.');
+      }
+
+      setMessages(prev => [...prev.slice(-99), {
+        id: id(),
+        role: 'assistant',
+        text: data.answer,
+      }]);
+    } catch (error) {
+      console.error('AI Study Bot request failed:', error);
+      setMessages(prev => [...prev.slice(-99), {
+        id: id(),
+        role: 'assistant',
+        text: error instanceof Error ? error.message : 'AI service se response nahi mila. Thodi der baad try karo.',
+      }]);
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-3">
+        {open ? (
+          <section
+            role="dialog"
+            aria-modal="false"
+            aria-label="AI Study Coach"
+            className="w-[calc(100vw-2rem)] sm:w-[420px] max-w-md h-[min(680px,calc(100vh-6rem))] rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
           >
-            <option>Ask</option>
-            <option>Learn</option>
-            <option>Practice</option>
-            <option>Test</option>
-          </select>
+            <header className="px-4 py-3 border-b border-slate-800 bg-slate-900 shrink-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                    <Bot className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-bold text-slate-100 truncate">AI Study Coach</h2>
+                      <span className="text-[9px] uppercase font-bold text-emerald-400">Online</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate">Personal mentor • tracker-aware</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="w-9 h-9 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 flex items-center justify-center"
+                  aria-label="Minimize AI Study Coach"
+                >
+                  <Minimize2 size={16} />
+                </button>
+              </div>
 
-        </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <select
+                  value={exam}
+                  onChange={event => setExam(event.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-[11px] text-slate-300 outline-none focus:border-amber-500"
+                  aria-label="Exam"
+                >
+                  <option>Any Exam</option>
+                  <option>SSC CHSL</option>
+                  <option>Railway Group D</option>
+                  <option>UP Lekhpal</option>
+                  <option>RRB Group D</option>
+                  <option>RRB NTPC</option>
+                  <option>SSC MTS</option>
+                  <option>SSC GD</option>
+                  <option>AOC JOA</option>
+                  <option>RPF</option>
+                </select>
+                <select
+                  value={mode}
+                  onChange={event => setMode(event.target.value as StudyMode)}
+                  className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-[11px] text-slate-300 outline-none focus:border-amber-500"
+                  aria-label="Study mode"
+                >
+                  <option>Ask</option>
+                  <option>Learn</option>
+                  <option>Practice</option>
+                  <option>Test</option>
+                </select>
+              </div>
+            </header>
 
-      </div>
+            <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 custom-scrollbar" aria-live="polite">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-slate-600 px-1">
+                <Sparkles size={12} /> Live tracker context
+              </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {messages.map(message => (
+                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[88%] rounded-2xl px-3.5 py-3 ${message.role === 'user' ? 'bg-amber-600 text-white rounded-br-md' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-md'}`}>
+                    {message.role === 'assistant' && (
+                      <div className="flex items-center gap-1.5 mb-1.5 text-[10px] uppercase font-bold text-amber-400">
+                        <Bot size={12} /> AI Coach
+                      </div>
+                    )}
+                    {message.attachment && (
+                      <div className="mb-2 flex items-center gap-2 rounded-lg bg-black/15 px-2.5 py-2">
+                        <FileText size={14} />
+                        <span className="text-[11px] truncate">{message.attachment.name}</span>
+                      </div>
+                    )}
+                    <p className="text-sm leading-6 whitespace-pre-wrap">{message.text}</p>
+                  </div>
+                </div>
+              ))}
 
-        {messages.map((message) => (
-
-          <div
-            key={message.id}
-            className={`flex ${
-              message.role === "user"
-                ? "justify-end"
-                : "justify-start"
-            }`}
-          >
-
-            <div
-              className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                message.role === "user"
-                  ? "bg-amber-600 text-white"
-                  : "bg-slate-900 border border-slate-800 text-slate-200"
-              }`}
-            >
-
-              {message.role === "assistant" && (
-                <div className="flex items-center gap-2 mb-2 text-xs text-amber-400 font-bold">
-                  <Bot className="w-4 h-4" />
-                  AI Study Bot
+              {sending && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-3 text-xs text-slate-500">
+                    <Loader2 size={14} className="animate-spin text-amber-400" />
+                    Coach soch raha hai…
+                  </div>
                 </div>
               )}
-
-              {message.attachment && (
-                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-black/20">
-                  {message.attachment.type.startsWith("image/") ? (
-                    <ImageIcon className="w-4 h-4" />
-                  ) : (
-                    <FileText className="w-4 h-4" />
-                  )}
-
-                  <span className="text-xs truncate">
-                    {message.attachment.name}
-                  </span>
-                </div>
-              )}
-
-              <p className="text-sm leading-6 whitespace-pre-wrap">
-                {message.content}
-              </p>
-
             </div>
 
-          </div>
+            <div className="px-3 pb-2 shrink-0">
+              <div className="flex gap-1.5 overflow-x-auto">
+                {['Aaj kya padhna hai?', 'Meri top weak topics batao', 'Mock trend analyze karo', '10 MCQ poochho'].map(suggestion => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => {
+                      setInput(suggestion);
+                      inputRef.current?.focus();
+                    }}
+                    className="whitespace-nowrap px-2.5 py-1.5 rounded-full border border-slate-800 bg-slate-900 text-[10px] text-slate-400 hover:text-slate-200 hover:border-amber-500"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        ))}
-
-      </div>
-
-      {/* Mode shortcuts */}
-      <div className="px-4 pb-2 flex gap-2 overflow-x-auto">
-
-        {[
-          "मुझे इस topic को पढ़ाओ",
-          "10 MCQ पूछो",
-          "इस question को समझाओ",
-          "इस PDF से test लो",
-        ].map((suggestion) => (
-
-          <button
-            key={suggestion}
-            onClick={() => setInput(suggestion)}
-            className="whitespace-nowrap px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900 text-xs text-slate-400 hover:text-slate-200 hover:border-amber-500"
-          >
-            {suggestion}
-          </button>
-
-        ))}
-
-      </div>
-
-      {/* Attachment */}
-      {attachment && (
-        <div className="mx-4 mb-2 flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
-
-          <div className="flex items-center gap-2 min-w-0">
-
-            {attachment.type.startsWith("image/") ? (
-              <ImageIcon className="w-4 h-4 text-sky-400" />
-            ) : (
-              <FileText className="w-4 h-4 text-rose-400" />
+            {weakTopics.length > 0 && (
+              <div className="mx-3 mb-2 rounded-xl border border-rose-500/15 bg-rose-500/5 px-3 py-2 shrink-0">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-rose-300">
+                  <AlertTriangle size={12} /> Top weak signals
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {weakTopics.map(item => (
+                    <span key={`${item.subject}::${item.topic}`} className="text-[9px] px-2 py-1 rounded-md bg-slate-950 border border-slate-800 text-slate-400">
+                      {item.topic} • {item.count}x
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
 
-            <span className="text-xs text-slate-300 truncate">
-              {attachment.name}
-            </span>
+            {attachment && (
+              <div className="mx-3 mb-2 flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Paperclip size={13} className="text-amber-400" />
+                  <span className="text-[11px] text-slate-300 truncate">{attachment.name}</span>
+                </div>
+                <button type="button" onClick={() => setAttachment(null)} className="text-slate-600 hover:text-white" aria-label="Remove attachment">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
 
-          </div>
-
+            <footer className="p-3 border-t border-slate-800 bg-slate-900 shrink-0">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,.pdf,application/pdf"
+                className="hidden"
+                onChange={event => {
+                  const file = event.target.files?.[0];
+                  if (file) handleFile(file);
+                  event.currentTarget.value = '';
+                }}
+              />
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={sending}
+                  className="w-10 h-10 rounded-xl border border-slate-700 bg-slate-950 text-slate-400 hover:text-amber-400 hover:border-amber-500 flex items-center justify-center shrink-0 disabled:opacity-50"
+                  aria-label="Upload image or PDF"
+                >
+                  <Paperclip size={17} />
+                </button>
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={event => setInput(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault();
+                      void send();
+                    }
+                  }}
+                  placeholder="Bhai, kya padhna hai?"
+                  rows={1}
+                  maxLength={8000}
+                  disabled={sending}
+                  className="flex-1 min-h-10 max-h-28 resize-none bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-amber-500 disabled:opacity-60"
+                  aria-label="Message"
+                />
+                <button
+                  type="button"
+                  onClick={() => void send()}
+                  disabled={(!input.trim() && !attachment) || sending}
+                  className="w-10 h-10 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 flex items-center justify-center shrink-0"
+                  aria-label="Send message"
+                >
+                  {sending ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
+                </button>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[9px] text-slate-600">
+                <span>{mode} • {exam} • {subject}</span>
+                <span>Tracker auto-sync on send</span>
+              </div>
+            </footer>
+          </section>
+        ) : (
           <button
-            onClick={() => setAttachment(null)}
-            className="text-slate-500 hover:text-white"
+            type="button"
+            onClick={() => setOpen(true)}
+            className="relative w-14 h-14 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-2xl shadow-amber-500/20 border border-amber-300/30 flex items-center justify-center transition-all hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/30"
+            aria-label="Open AI Study Coach"
+            title="Open AI Study Coach"
           >
-            <X className="w-4 h-4" />
+            <Bot size={23} />
+            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-[8px] font-black flex items-center justify-center border-2 border-slate-950">AI</span>
           </button>
-
-        </div>
-      )}
-
-      {/* Input */}
-      <div className="p-4 border-t border-slate-800 bg-slate-900">
-
-        <div className="flex items-end gap-2">
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,.pdf,application/pdf"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-
-              if (file) {
-                handleFile(file);
-              }
-
-              e.currentTarget.value = "";
-            }}
-          />
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-11 h-11 flex-shrink-0 rounded-xl border border-slate-700 bg-slate-950 text-slate-400 hover:text-amber-400 hover:border-amber-500 flex items-center justify-center"
-            title="Upload Image/PDF"
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
-
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            placeholder={`Ask anything about ${subject}...`}
-            rows={2}
-            className="flex-1 resize-none bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
-          />
-
-          <button
-            onClick={sendMessage}
-            disabled={!input.trim() && !attachment}
-            className="w-11 h-11 flex-shrink-0 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-600 text-white flex items-center justify-center"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-
-        </div>
-
-        <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-600">
-          <GraduationCap className="w-3 h-3" />
-          <span>
-            Study Mode: {mode} • {exam} • {subject}
-          </span>
-        </div>
-
+        )}
       </div>
-
-    </div>
+    </>
   );
 }
