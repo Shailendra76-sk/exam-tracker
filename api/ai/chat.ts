@@ -24,6 +24,15 @@ type Attachment = {
   dataUrl?: string;
 };
 
+type AIProvider = "OpenAI" | "OpenRouter" | "NVIDIA NIM" | "Free Tier API (Groq/Gemini)";
+
+type ProviderConfig = {
+  provider?: AIProvider;
+  apiKey?: string;
+  model?: string;
+  endpoint?: string;
+};
+
 type RequestBody = {
   messages?: ChatMessage[];
   exam?: string;
@@ -31,6 +40,7 @@ type RequestBody = {
   mode?: "Ask" | "Learn" | "Practice" | "Test";
   studyContext?: string;
   attachment?: Attachment;
+  providerConfig?: ProviderConfig;
 };
 
 const MAX_ATTACHMENT_BYTES = 2_500_000;
@@ -96,18 +106,37 @@ export default async function handler(
   }
 
   try {
-    const apiKey = process.env.AI_API_KEY;
-    const baseUrl = process.env.AI_BASE_URL || "https://api.openai.com/v1";
-    const model = process.env.AI_MODEL || "gpt-4o-mini";
+    const body = req.body as RequestBody;
+
+    const configured = body?.providerConfig;
+    const configuredKey = typeof configured?.apiKey === "string" ? configured.apiKey.trim() : "";
+    const configuredEndpoint = typeof configured?.endpoint === "string" ? configured.endpoint.trim() : "";
+    const configuredModel = typeof configured?.model === "string" ? configured.model.trim() : "";
+
+    const apiKey = configuredKey || process.env.AI_API_KEY || "";
+    const baseUrl = configuredEndpoint || process.env.AI_BASE_URL || "https://api.openai.com/v1";
+    const model = configuredModel || process.env.AI_MODEL || "gpt-4o-mini";
 
     if (!apiKey) {
       return res.status(500).json({
         success: false,
-        error: "AI_API_KEY is not configured on the server.",
+        error: "AI API key is not configured.",
       });
     }
 
-    const body = req.body as RequestBody;
+    if (baseUrl.length > 500 || model.length > 200) {
+      return res.status(400).json({
+        success: false,
+        error: "AI provider configuration is invalid.",
+      });
+    }
+
+    if (!/^https:\/\//i.test(baseUrl)) {
+      return res.status(400).json({
+        success: false,
+        error: "AI provider endpoint must use HTTPS.",
+      });
+    }
 
     if (!body || typeof body !== "object") {
       return res.status(400).json({
@@ -355,7 +384,10 @@ ${studyContext || "No tracker context was provided."}
     return res.status(200).json({
       success: true,
       answer,
-      provider: { model },
+      provider: {
+        name: configured?.provider || "server-default",
+        model,
+      },
       usage: data?.usage || null,
     });
   } catch (error) {
