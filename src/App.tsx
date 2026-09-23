@@ -443,8 +443,15 @@ const FloatingTimer = () => {
 
 
 // --- MAIN APPLICATION COMPONENT ---
+const getInitialTab = () => {
+  if (typeof window !== 'undefined' && window.location.pathname.replace(/\/$/, '') === '/admin') {
+    return 'admin';
+  }
+  return 'dashboard';
+};
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // App State
@@ -469,6 +476,16 @@ export default function App() {
     setMockFormExam(nextExam);
     setWeakFormExam(nextExam);
   }, [selectedExam]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.replace(/\/$/, '');
+      setActiveTab(path === '/admin' ? 'admin' : 'dashboard');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     const migrationKey = "field-log:v1:exam-migration-1";
@@ -1544,6 +1561,11 @@ export default function App() {
                 onClick={() => {
                   setActiveTab(item.id);
                   setIsMobileMenuOpen(false);
+
+                  const nextPath = item.id === 'admin' ? '/admin' : '/';
+                  if (window.location.pathname !== nextPath) {
+                    window.history.pushState({}, '', nextPath);
+                  }
                 }}
                 className={`w-full flex items-baseline space-x-3 px-3 py-2.5 rounded-md transition-all text-left ${
                   isActive 
