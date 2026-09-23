@@ -358,6 +358,7 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
           mode,
           studyContext: studyContext + attachmentNote,
           messages: [...messages, { role: 'user', content: text + attachmentNote }]
+            .slice(-20)
             .map(message => ({ role: message.role, content: message.content }))
         }),
       });
