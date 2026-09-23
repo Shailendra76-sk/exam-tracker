@@ -4,7 +4,6 @@ import {
   Bot,
   FileText,
   Loader2,
-  Minimize2,
   Paperclip,
   Send,
   Sparkles,
@@ -357,9 +356,15 @@ export default function AIStudyBot({
             <header className="px-4 py-3 border-b border-slate-800 bg-slate-900 shrink-0">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 hover:bg-amber-500/15 transition-colors"
+                    aria-label="Minimize AI Study Coach"
+                    title="Minimize"
+                  >
                     <Bot className="w-5 h-5 text-amber-400" />
-                  </div>
+                  </button>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h2 className="font-bold text-slate-100 truncate">AI Study Coach</h2>
@@ -372,9 +377,10 @@ export default function AIStudyBot({
                   type="button"
                   onClick={() => setOpen(false)}
                   className="w-9 h-9 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 flex items-center justify-center"
-                  aria-label="Minimize AI Study Coach"
+                  aria-label="Close AI Study Coach"
+                  title="Close"
                 >
-                  <Minimize2 size={16} />
+                  <X size={17} />
                 </button>
               </div>
 
