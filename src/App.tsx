@@ -68,6 +68,9 @@ const EXAM_SUBJECTS: Record<string, string[]> = {
   'SSC GD': ['Maths', 'Reasoning', 'English', 'Hindi', 'GK', 'Science'],
   'RRB Group D': ['Maths', 'Reasoning', 'Science', 'GK'],
   'RRB NTPC': ['Maths', 'Reasoning', 'English', 'GK'],
+  'RRB NTPC (12th Level)': ['Maths', 'Reasoning', 'English', 'GK'],
+  'AOC JOA (12th Level)': ['Maths', 'Reasoning', 'English', 'GK'],
+  '12th-Level Govt Core': ['Maths', 'Reasoning', 'English', 'Hindi', 'GK', 'Science'],
   'UP Lekhpal': ['Maths', 'Reasoning', 'Hindi', 'GK'],
   'AOC JOA': ['Maths', 'Reasoning', 'English', 'GK', 'Computer'],
   'RPF': ['Maths', 'Reasoning', 'English', 'GK'],
@@ -456,6 +459,7 @@ export default function App() {
       setPlannerGoalHours(5);
       setPlannerDone({});
       window.localStorage.removeItem(TIMER_STORAGE_KEY);
+      window.localStorage.removeItem("field-log:v3:master-syllabus");
       window.localStorage.removeItem("field-log:v2:master-syllabus:maths");
       window.localStorage.removeItem("field-log:v1:aiMessages");
       const resetSyllabus: Record<string, Array<{ id: string; name: string; completed: boolean; custom?: boolean }>> = {};
@@ -478,7 +482,8 @@ export default function App() {
     'plannerDone',
     'aiMessages',
     'studyTimer',
-    'masterSyllabusMaths'
+    'masterSyllabusMaths',
+    'masterSyllabus'
   ] as const;
 
   const exportBackup = () => {
@@ -495,7 +500,9 @@ export default function App() {
         ? TIMER_STORAGE_KEY
         : key === "masterSyllabusMaths"
           ? "field-log:v2:master-syllabus:maths"
-          : `field-log:v1:${key}`;
+          : key === "masterSyllabus"
+            ? "field-log:v3:master-syllabus"
+            : `field-log:v1:${key}`;
       const raw = window.localStorage.getItem(storageKey);
       if (raw) {
         try {
