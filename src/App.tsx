@@ -394,7 +394,7 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
           exam: exam === 'Any Exam' ? defaultExam : exam,
           subject,
           mode,
-          studyContext: studyContext + (attachmentNote ? '\\n\\n' + attachmentNote : ''),
+          studyContext: studyContext + (attachmentNote ? '\n\n' + attachmentNote : ''),
           messages: history,
           attachment: attachmentPayload
         }),
@@ -514,7 +514,7 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
           <div className="flex items-center gap-2 min-w-0">
             {attachment.type.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-sky-400" /> : <FileText className="w-4 h-4 text-rose-400" />}
             <span className="text-xs text-slate-300 truncate">{attachment.name}</span>
-            <span className="text-[10px] text-emerald-400">ready to analyze</span>
+            <span className="text-[10px] text-emerald-400">ready • max 2.5 MB</span>
           </div>
           <button onClick={() => setAttachment(null)} className="text-slate-500 hover:text-white"><XCircle className="w-4 h-4" /></button>
         </div>
