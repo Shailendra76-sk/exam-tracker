@@ -39,6 +39,7 @@ export const MASTER_SUBJECTS = [
   'English',
   'GK & Science',
   'General Hindi',
+  'Computer',
 ] as const;
 
 export type MasterSubject = (typeof MASTER_SUBJECTS)[number];
@@ -848,6 +849,65 @@ export const MASTER_SYLLABUS: Record<MasterSubject, SubjectSection[]> = {
       ],
     },
   ],
+
+  Computer: [
+    {
+      id: 'computer-knowledge',
+      title: '1️⃣ Computer Knowledge',
+      hint: 'कंप्यूटर ज्ञान • SSC CHSL Tier-2, AOC JOA और UP-focused computer preparation',
+      priority: true,
+      chapters: [
+        makeChapter(
+          'computer-basics',
+          'Computer Basics',
+          'कंप्यूटर के मूल सिद्धांत',
+          [
+            ['computer-basics-01', 'CPU & Architecture', 'सीपीयू और संरचना'],
+            ['computer-basics-02', 'Input & Output Devices', 'इनपुट और आउटपुट डिवाइसेज'],
+            ['computer-basics-03', 'RAM/ROM Memory', 'कंप्यूटर मेमोरी'],
+            ['computer-basics-04', 'Storage Devices', 'स्टोरेज डिवाइसेज'],
+          ],
+          makeScope('core', 'extra', 'extra', 'core', 'core', 'core'),
+        ),
+        makeChapter(
+          'software-ms-office',
+          'Software & MS Office',
+          'सॉफ्टवेयर और एमएस ऑफिस',
+          [
+            ['software-ms-office-01', 'Operating Systems basics', 'ऑपरेटिंग सिस्टम'],
+            ['software-ms-office-02', 'MS Word', 'एमएस वर्ड'],
+            ['software-ms-office-03', 'MS Excel Formulas', 'एमएस एक्सेल'],
+            ['software-ms-office-04', 'MS PowerPoint', 'एमएस पॉवरपॉइंट'],
+          ],
+          makeScope('core', 'extra', 'extra', 'core', 'core', 'core'),
+        ),
+        makeChapter(
+          'internet-emails',
+          'Internet & E-Mails',
+          'इंटरनेट और ईमेल',
+          [
+            ['internet-emails-01', 'Web Browsing & Search Engines', 'वेब ब्राउज़िंग'],
+            ['internet-emails-02', 'Downloading & Uploading', 'डाउनलोड/अपलोड'],
+            ['internet-emails-03', 'E-mail Protocols', 'ईमेल प्रबंधन'],
+            ['internet-emails-04', 'E-Banking & Digital Payments', 'डिजिटल भुगतान'],
+          ],
+          makeScope('core', 'extra', 'extra', 'core', 'core', 'core'),
+        ),
+        makeChapter(
+          'networking-cyber-security',
+          'Networking & Cyber Security',
+          'नेटवर्किंग और साइबर सुरक्षा',
+          [
+            ['networking-cyber-security-01', 'Networking Devices & Topologies', 'नेटवर्किंग'],
+            ['networking-cyber-security-02', 'Internet Protocols', 'इंटरनेट प्रोटोकॉल'],
+            ['networking-cyber-security-03', 'Cyber Threats - Viruses & Trojans', 'साइबर खतरे'],
+            ['networking-cyber-security-04', 'Firewalls & Security', 'फ़ायरवॉल और सुरक्षा'],
+          ],
+          makeScope('core', 'extra', 'extra', 'core', 'core', 'core'),
+        ),
+      ],
+    },
+  ],
 };
 
 export const SUBJECT_FILTER_HINTS: Record<MasterSubject, string> = {
@@ -856,6 +916,7 @@ export const SUBJECT_FILTER_HINTS: Record<MasterSubject, string> = {
   English: 'English is core for SSC CHSL, RRB NTPC and AOC; extra for UP-focused exams.',
   'GK & Science': 'General Science is kept broad for Railway; UP Special becomes core for UP Lekhpal.',
   'General Hindi': 'Hindi is core for UP Lekhpal and intentionally marked extra for SSC/RRB/AOC.',
+  Computer: 'Computer is core for SSC CHSL, AOC JOA and UP Lekhpal; Railway/RRB filters keep it visible as extra.',
 };
 
 export const EXAM_FILTERS: MasterExamFilter[] = [
