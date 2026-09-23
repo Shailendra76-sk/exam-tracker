@@ -29,7 +29,9 @@ import {
   FileText,
   Image as ImageIcon,
   XCircle,
-  GraduationCap
+  GraduationCap,
+  Download,
+  Upload
 } from 'lucide-react';
 
 // --- CONSTANTS & COLOR THEMES ---
@@ -305,7 +307,7 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
     attachment?: { name: string; type: string };
   };
 
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = usePersistentState<Message[]>('aiMessages', [
     {
       id: 'welcome',
       role: 'assistant',
@@ -409,8 +411,20 @@ const AIStudyBot = ({ studyContext, defaultExam }: { studyContext: string; defau
               <p className="text-xs text-slate-500">Your Exam Data • AI Learning • Practice • Analysis</p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-xs text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" /> Ready
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 text-xs text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Ready
+            </div>
+            <button
+              onClick={() => setMessages([{
+                id: 'welcome',
+                role: 'assistant',
+                content: 'Namaste! Main AI Study Bot hoon. Tracker ka syllabus, PYQ, mock aur weak-topic data bhi mere context mein rahega.'
+              }])}
+              className="text-xs text-slate-500 hover:text-rose-400"
+            >
+              Clear Chat
+            </button>
           </div>
         </div>
 
@@ -525,6 +539,81 @@ export default function App() {
         resetSyllabus[key] = topics.map(t => ({ ...t, completed: false }));
       });
       setSyllabus(resetSyllabus);
+    }
+  };
+
+  const backupKeys = [
+    'dailyLogs',
+    'mocks',
+    'pyqLogs',
+    'weakTopics',
+    'syllabus',
+    'nextPlan',
+    'selectedExam',
+    'plannerGoalHours',
+    'plannerDone',
+    'aiMessages'
+  ] as const;
+
+  const exportBackup = () => {
+    const payload: Record<string, unknown> = {
+      app: 'Field Log',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {}
+    };
+
+    const data = payload.data as Record<string, unknown>;
+    backupKeys.forEach(key => {
+      const raw = window.localStorage.getItem(`field-log:v1:${key}`);
+      if (raw) {
+        try {
+          data[key] = JSON.parse(raw);
+        } catch {
+          // Skip corrupt local entries rather than breaking the full backup.
+        }
+      }
+    });
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `field-log-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importBackup = async (file: File) => {
+    if (file.size > 2_000_000) {
+      alert('Backup file 2 MB se chhoti honi chahiye.');
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(await file.text());
+      if (
+        !payload ||
+        payload.app !== 'Field Log' ||
+        payload.version !== 1 ||
+        !payload.data ||
+        typeof payload.data !== 'object'
+      ) {
+        throw new Error('Invalid backup format');
+      }
+
+      const data = payload.data as Record<string, unknown>;
+      backupKeys.forEach(key => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          window.localStorage.setItem(`field-log:v1:${key}`, JSON.stringify(data[key]));
+        }
+      });
+
+      alert('Backup restore ho gaya. Tracker reload hoga.');
+      window.location.reload();
+    } catch (error) {
+      console.error('Backup import failed:', error);
+      alert('Backup file valid nahi hai.');
     }
   };
 
@@ -1710,7 +1799,26 @@ export default function App() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800/50 mt-auto">
+        <div className="p-4 border-t border-slate-800/50 mt-auto space-y-2">
+          <input
+            id="field-log-backup-input"
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={e => {
+              const file = e.target.files?.[0];
+              if (file) void importBackup(file);
+              e.currentTarget.value = '';
+            }}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={exportBackup} className="flex items-center justify-center gap-1.5 bg-slate-900 border border-slate-700 hover:border-amber-500 text-slate-400 hover:text-amber-400 text-xs py-2 rounded transition-colors">
+              <Download size={13} /> Backup
+            </button>
+            <button onClick={() => document.getElementById('field-log-backup-input')?.click()} className="flex items-center justify-center gap-1.5 bg-slate-900 border border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 text-xs py-2 rounded transition-colors">
+              <Upload size={13} /> Restore
+            </button>
+          </div>
           <button onClick={resetAllData} className="w-full bg-slate-900 border border-slate-700 hover:border-rose-500 hover:text-rose-400 text-slate-400 text-xs py-2 rounded transition-colors">
             Reset all data
           </button>
