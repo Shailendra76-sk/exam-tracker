@@ -34,6 +34,7 @@ import {
   Upload
 } from 'lucide-react';
 import MasterSyllabus from './components/MasterSyllabus';
+import MockTracker, { type MockLog } from './components/MockTracker';
 
 // --- CONSTANTS & COLOR THEMES ---
 const SUBJECT_COLORS: Record<string, string> = { 
@@ -80,7 +81,7 @@ const initialDailyLogs = [
   { id: 2, date: '2026-08-29', exam: 'RRB Group D', subject: 'Reasoning', topic: 'Syllogism (Only a few cases)', hours: 2.0, notes: 'Need more practice on Possibility statements.' },
 ];
 
-const initialMocks = [
+const initialMocks: MockLog[] = [
   { id: 1, date: '2026-08-20', type: 'SSC GD', totalScore: 135, maths: 40, reasoning: 45, lang: 30, ga: 20, correct: 75, incorrect: 25 },
   { id: 2, date: '2026-08-27', type: 'SSC MTS', totalScore: 112, maths: 45, reasoning: 40, lang: 15, ga: 12, correct: 60, incorrect: 10 },
 ];
@@ -620,7 +621,7 @@ export default function App() {
 
   // App State
   const [dailyLogs, setDailyLogs] = usePersistentState("dailyLogs", initialDailyLogs);
-  const [mocks, setMocks] = usePersistentState("mocks", initialMocks);
+  const [mocks, setMocks] = usePersistentState<MockLog[]>("mocks", initialMocks);
   const [pyqLogs, setPyqLogs] = usePersistentState("pyqLogs", initialPyqLogs);
   const [weakTopics, setWeakTopics] = usePersistentState("weakTopics", initialWeakTopics);
   const [syllabus, setSyllabus] = usePersistentState("syllabus", initialSyllabus);
@@ -1201,151 +1202,13 @@ export default function App() {
   };
 
   // --- 3. MOCK/TEST TRACKER ---
-  const renderMockTracker = () => {
-    const section3Label = mockFormExam === "RRB Group D"
-      ? "Science"
-      : mockFormExam === "UP Lekhpal"
-        ? "Hindi"
-        : "Language";
-    const section4Label = "GK / GA";
-
-    const handleAddMock = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      const form = e.currentTarget;
-      const formData = new FormData(form);
-      const date = String(formData.get('date') || '').trim();
-      const type = String(formData.get('type') || '').trim();
-      const totalScore = Number(formData.get('total'));
-      const maths = Number(formData.get('maths'));
-      const reasoning = Number(formData.get('reasoning'));
-      const lang = Number(formData.get('lang'));
-      const ga = Number(formData.get('ga'));
-      const correct = Number(formData.get('correct'));
-      const incorrect = Number(formData.get('incorrect'));
-
-    const values = [totalScore, maths, reasoning, lang, ga, correct, incorrect];
-      if (!date || !type || values.some(value => !Number.isFinite(value) || value < 0) || correct + incorrect === 0) {
-        alert('Please enter valid non-negative mock scores and at least one attempted question.');
-        return;
-      }
-
-      const newMock = { id: Date.now(), date, type, totalScore, maths, reasoning, lang, ga, correct, incorrect };
-      setMocks([newMock, ...mocks]);
-      form.reset();
-    };
-
-    const visibleMocks = selectedExam === "All Exams"
-      ? mocks
-      : mocks.filter(mock => mock.type === selectedExam);
-
-    return (
-      <div className="space-y-6 animate-in fade-in duration-500">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-100 font-serif">Mock Test Performance Tracker</h2>
-          <p className="text-slate-400 text-sm mt-1">Sectional score, overall score aur automatic accuracy percentage log karein • View: {selectedExam}</p>
-        </div>
-
-        <form onSubmit={handleAddMock} className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Exam Type</label>
-              <select required name="type" value={mockFormExam} onChange={e => setMockFormExam(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
-                <option value="SSC GD">SSC GD</option>
-                <option value="SSC MTS">SSC MTS</option>
-                <option value="RRB Group D">RRB Group D</option>
-                <option value="RRB NTPC">RRB NTPC</option>
-                <option value="UP Lekhpal">UP Lekhpal</option>
-                <option value="AOC JOA">AOC JOA</option>
-                <option value="SSC CHSL">SSC CHSL</option>
-                <option value="RPF">RPF</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Mock Date</label>
-              <input required name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Total Score</label>
-              <input required name="total" type="number" step="0.5" min="0" placeholder="e.g. 135" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none" />
-            </div>
-          </div>
-          
-          <div className="border-t border-slate-800 pt-4 grid grid-cols-2 md:grid-cols-6 gap-3">
-            <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Maths</label>
-              <input required name="maths" type="number" min="0" placeholder="40" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Reasoning</label>
-              <input required name="reasoning" type="number" min="0" placeholder="45" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">{section3Label}</label>
-              <input required name="lang" type="number" min="0" placeholder="30" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">{section4Label}</label>
-              <input required name="ga" type="number" min="0" placeholder="20" className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-200" />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-emerald-400 mb-1">Correct Qs</label>
-              <input required name="correct" type="number" min="0" placeholder="75" className="w-full bg-slate-950 border border-emerald-900/60 rounded px-2.5 py-1.5 text-sm text-emerald-400" />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-rose-400 mb-1">Incorrect Qs</label>
-              <input required name="incorrect" type="number" min="0" placeholder="15" className="w-full bg-slate-950 border border-rose-900/60 rounded px-2.5 py-1.5 text-sm text-rose-400" />
-            </div>
-          </div>
-          
-          <div className="flex justify-end">
-            <button type="submit" className="bg-slate-100 hover:bg-white text-slate-950 font-bold py-2 px-6 rounded-lg transition-colors text-sm">
-              Save Mock Result
-            </button>
-          </div>
-        </form>
-
-        <div className="space-y-3">
-          {visibleMocks.map(mock => {
-            const accuracy = mock.correct + mock.incorrect > 0 
-              ? ((mock.correct / (mock.correct + mock.incorrect)) * 100).toFixed(1) 
-              : '0.0';
-            const badgeColor = EXAM_COLORS[mock.type] || 'bg-slate-600';
-
-            return (
-              <div key={mock.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <span className={`px-2.5 py-1 rounded text-xs font-bold text-white ${badgeColor}`}>{mock.type}</span>
-                  <div>
-                    <div className="text-2xl font-mono font-bold text-slate-100">{mock.totalScore} <span className="text-xs text-slate-500 font-sans">Score</span></div>
-                    <div className="text-xs text-slate-500">{mock.date}</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  <div><div className="text-[10px] text-slate-500">MATHS</div><div className="font-mono font-semibold text-slate-300">{mock.maths}</div></div>
-                  <div><div className="text-[10px] text-slate-500">REAS</div><div className="font-mono font-semibold text-slate-300">{mock.reasoning}</div></div>
-                  <div><div className="text-[10px] text-slate-500">LANG</div><div className="font-mono font-semibold text-slate-300">{mock.lang}</div></div>
-                  <div><div className="text-[10px] text-slate-500">GA</div><div className="font-mono font-semibold text-slate-300">{mock.ga}</div></div>
-                </div>
-
-                <div className="flex items-center justify-between md:justify-end gap-4">
-                  <div className="text-right">
-                    <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-bold rounded">
-                      {accuracy}% Accuracy
-                    </span>
-                    <div className="text-[11px] text-slate-500 mt-1 font-mono">{mock.correct} Correct / {mock.incorrect} Wrong</div>
-                  </div>
-                  <button onClick={() => setMocks(mocks.filter(m => m.id !== mock.id))} className="text-slate-600 hover:text-rose-400">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const renderMockTracker = () => (
+    <MockTracker
+      mocks={mocks}
+      setMocks={setMocks}
+      selectedExam={selectedExam}
+    />
+  );
 
   // --- 4. PYQ PRACTICE LOG ---
   const renderPYQ = () => {
