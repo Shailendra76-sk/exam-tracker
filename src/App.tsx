@@ -224,20 +224,78 @@ function usePersistentState<T>(key: string, initialValue: T): [T, PersistentStat
 }
 
 // --- FLOATING STUDY TIMER COMPONENT ---
+const TIMER_STORAGE_KEY = "field-log:v1:studyTimer";
+
+type TimerStorage = {
+  time: number;
+  isRunning: boolean;
+  startedAt: number | null;
+};
+
 const FloatingTimer = () => {
-  const [time, setTime] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
+  const [timer, setTimer] = useState<TimerStorage>(() => {
+    if (typeof window === "undefined") {
+      return { time: 0, isRunning: false, startedAt: null };
+    }
+
+    try {
+      const raw = window.localStorage.getItem(TIMER_STORAGE_KEY);
+      const saved = raw ? (JSON.parse(raw) as TimerStorage) : null;
+      if (!saved || typeof saved.time !== "number" || typeof saved.isRunning !== "boolean") {
+        return { time: 0, isRunning: false, startedAt: null };
+      }
+
+      if (saved.isRunning && saved.startedAt) {
+        const elapsed = Math.max(0, Math.floor((Date.now() - saved.startedAt) / 1000));
+        return {
+          time: saved.time + elapsed,
+          isRunning: true,
+          startedAt: saved.startedAt
+        };
+      }
+
+      return {
+        time: Math.max(0, Math.floor(saved.time)),
+        isRunning: false,
+        startedAt: null
+      };
+    } catch {
+      return { time: 0, isRunning: false, startedAt: null };
+    }
+  });
+
   const [isMinimized, setIsMinimized] = useState(false);
+  const { time, isRunning, startedAt } = timer;
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setTime((prev) => prev + 1);
-      }, 1000);
+    try {
+      window.localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timer));
+    } catch {
+      // Timer persistence is best-effort.
     }
+  }, [timer]);
+
+  useEffect(() => {
+    if (!isRunning || !startedAt) return;
+
+    const update = () => {
+      const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+      setTimer(prev => ({
+        ...prev,
+        time: prev.time === elapsed + (prev.time - elapsed) ? prev.time : prev.time
+      }));
+    };
+
+    const interval = setInterval(() => {
+      setTimer(prev => ({
+        ...prev,
+        time: prev.time + 1
+      }));
+    }, 1000);
+
+    update();
     return () => clearInterval(interval);
-  }, [isRunning]);
+  }, [isRunning, startedAt]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -261,7 +319,9 @@ const FloatingTimer = () => {
           <TimerIcon size={16} className={`text-amber-500 ${isRunning ? 'animate-pulse' : ''}`} />
           <span className="font-mono font-bold text-slate-100 text-sm tracking-wider">{formatTime(time)}</span>
           <div className="flex items-center gap-1 border-l border-slate-700 pl-3 ml-1">
-            <button onClick={() => setIsRunning(!isRunning)} className="text-slate-400 hover:text-amber-500 p-1">
+            <button onClick={() => setTimer(prev => prev.isRunning
+                ? { ...prev, isRunning: false, startedAt: null }
+                : { ...prev, isRunning: true, startedAt: Date.now() })} className="text-slate-400 hover:text-amber-500 p-1">
               {isRunning ? <Pause size={14} /> : <Play size={14} />}
             </button>
             <button onClick={() => setIsMinimized(false)} className="text-slate-400 hover:text-white p-1">
@@ -297,7 +357,7 @@ const FloatingTimer = () => {
               {isRunning ? <><Pause size={18} /> Pause</> : <><Play size={18} /> Start</>}
             </button>
             <button 
-              onClick={() => { setTime(0); setIsRunning(false); }} 
+              onClick={() => setTimer({ time: 0, isRunning: false, startedAt: null })} 
               className="p-3 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors border border-slate-700"
               title="Reset Timer"
             >
