@@ -379,7 +379,7 @@ const AIStudyBot = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
           <select value={exam} onChange={e => setExam(e.target.value)} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300">
-            <option>Any Exam</option><option>RRB Group D</option><option>RRB NTPC</option><option>UP Lekhpal</option><option>SSC MTS</option><option>SSC GD</option><option>SSC CHSL</option><option>RRB NTPC</option><option>NEET</option><option>JEE</option><option>Banking</option><option>UPSC</option><option>Other</option>
+            <option>Any Exam</option><option>RRB Group D</option><option>RRB NTPC</option><option>UP Lekhpal</option><option>SSC MTS</option><option>SSC GD</option><option>SSC CHSL</option><option>NEET</option><option>JEE</option><option>Banking</option><option>UPSC</option><option>Other</option>
           </select>
           <select value={subject} onChange={e => setSubject(e.target.value)} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300">
             <option>Any Subject</option><option>Mathematics</option><option>Reasoning</option><option>Science</option><option>GK</option><option>Current Affairs</option><option>English</option><option>Hindi</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Computer</option><option>Other</option>
@@ -776,7 +776,7 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Subject</label>
-              <select required name="subject">
+              <select required name="subject" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-amber-500">
                 <option value="Maths">Maths</option>
                 <option value="Reasoning">Reasoning</option>
                 <option value="Science">Science</option>
