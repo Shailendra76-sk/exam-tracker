@@ -63,6 +63,94 @@ function isPdfDataUrl(dataUrl: string) {
   return /^data:application\/pdf;base64,/i.test(dataUrl);
 }
 
+
+type OpenRouterModel = {
+  id?: string;
+  architecture?: {
+    input_modalities?: string[];
+  };
+};
+
+async function resolveVisionModel(
+  baseUrl: string,
+  apiKey: string,
+  configuredModel: string,
+): Promise<{ model: string; changed: boolean }> {
+  const isOpenRouter =
+    /openrouter\.ai\/api\/v1$/i.test(baseUrl) ||
+    /openrouter\.ai/i.test(baseUrl);
+
+  if (!isOpenRouter) {
+    return { model: configuredModel, changed: false };
+  }
+
+  try {
+    const response = await fetch(
+      baseUrl.replace(/\/$/, "") + "/models?input_modalities=image",
+      {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer " + apiKey,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("OpenRouter models endpoint returned " + response.status);
+    }
+
+    const payload = (await response.json()) as {
+      data?: OpenRouterModel[];
+    };
+
+    const models = Array.isArray(payload.data) ? payload.data : [];
+
+    const selected = models.find(model => model.id === configuredModel);
+    const selectedSupportsImage =
+      selected?.architecture?.input_modalities?.includes("image") === true;
+
+    if (selectedSupportsImage) {
+      return { model: configuredModel, changed: false };
+    }
+
+    const preferredVisionModels = [
+      "google/gemini-2.5-flash",
+      "google/gemini-3-flash-preview",
+      "meta-llama/llama-4-scout",
+    ];
+
+    const fallback = preferredVisionModels.find(candidate =>
+      models.some(model => model.id === candidate),
+    );
+
+    if (!fallback) {
+      const firstVision = models.find(model =>
+        model.architecture?.input_modalities?.includes("image"),
+      );
+
+      if (firstVision?.id) {
+        return { model: firstVision.id, changed: firstVision.id !== configuredModel };
+      }
+
+      throw new Error("OpenRouter account par koi image-capable model available nahi mila.");
+    }
+
+    return {
+      model: fallback,
+      changed: fallback !== configuredModel,
+    };
+  } catch (error) {
+    console.error("Vision model discovery failed:", error);
+
+    // Known current OpenRouter vision fallback. If unavailable for the
+    // configured key/account, the provider returns the precise error.
+    return {
+      model: "google/gemini-2.5-flash",
+      changed: configuredModel !== "google/gemini-2.5-flash",
+    };
+  }
+}
+
 async function extractPdfText(dataUrl: string) {
   const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
   const buffer = Buffer.from(base64, "base64");
@@ -314,6 +402,22 @@ TRACKER CONTEXT:
 ${studyContext || "No tracker context was provided."}
 `;
 
+    let requestModel = model;
+    let visionModelChanged = false;
+
+    if (
+      attachment &&
+      String(attachment.type || "").toLowerCase().startsWith("image/")
+    ) {
+      const resolvedVision = await resolveVisionModel(
+        baseUrl,
+        apiKey,
+        model,
+      );
+      requestModel = resolvedVision.model;
+      visionModelChanged = resolvedVision.changed;
+    }
+
     const providerMessages: ProviderMessage[] = [
       { role: "system", content: systemPrompt },
       ...body.messages,
@@ -360,7 +464,7 @@ ${studyContext || "No tracker context was provided."}
             : {}),
         },
         body: JSON.stringify({
-          model,
+          model: requestModel,
           messages: providerMessages,
           temperature: mode === "Test" ? 0.4 : 0.7,
           max_tokens: 2000,
@@ -413,7 +517,8 @@ ${studyContext || "No tracker context was provided."}
       answer,
       provider: {
         name: configured?.provider || "server-default",
-        model,
+        model: requestModel,
+        visionModelChanged,
       },
       usage: data?.usage || null,
     });
