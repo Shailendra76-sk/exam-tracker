@@ -132,6 +132,17 @@ async function testSupabaseConnection() {
     throw new Error('Supabase client initialize nahi hua.');
   }
 
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error) throw error;
+  if (!session?.user) {
+    throw new Error('Supabase connected hai, lekin active login session nahi hai.');
+  }
+}
+
   const { error } = await supabase.auth.getSession();
 
   if (error) {
@@ -140,28 +151,61 @@ async function testSupabaseConnection() {
 }
 
 async function syncSupabaseTable(
-  baseUrl: string,
-  anonKey: string,
-  table: string,
+  table: 'dailyLogs' | 'mocks' | 'syllabus',
   rows: unknown[],
 ) {
-  if (rows.length === 0) return { table, ok: true, message: 'No local rows to sync.' };
-  const response = await fetch(baseUrl + '/rest/v1/' + encodeURIComponent(table), {
-    method: 'POST',
-    headers: {
-      apikey: anonKey,
-      Authorization: 'Bearer ' + anonKey,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify(rows),
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(table + ': HTTP ' + response.status + (text ? ' — ' + text.slice(0, 180) : ''));
+  if (!supabase) {
+    throw new Error('Supabase client unavailable.');
   }
-  return { table, ok: true, message: rows.length + ' row(s) synced.' };
+
+  if (rows.length === 0) {
+    return { table, ok: true, message: 'No local rows to sync.' };
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error('Active Supabase login session nahi mila.');
+  }
+
+  const payload = rows.map((row, index) => {
+    const source =
+      row && typeof row === 'object'
+        ? (row as Record<string, unknown>)
+        : {};
+
+    const sourceId = source.id;
+    const id =
+      sourceId !== undefined && sourceId !== null
+        ? String(sourceId)
+        : table + '-' + index;
+
+    return {
+      id,
+      user_id: user.id,
+      data: row ?? {},
+      updated_at: new Date().toISOString(),
+    };
+  });
+
+  const { error } = await supabase
+    .from(table)
+    .upsert(payload, { onConflict: 'user_id,id' });
+
+  if (error) {
+    throw new Error(table + ': ' + error.message);
+  }
+
+  return {
+    table,
+    ok: true,
+    message: rows.length + ' row(s) synced.',
+  };
 }
+
 
 export default function AdminPanel({ dailyLogs, mocks, syllabus }: AdminPanelProps) {
   const [settings, setSettings] = useState<AdminSettings>(loadSettings);
@@ -233,24 +277,59 @@ export default function AdminPanel({ dailyLogs, mocks, syllabus }: AdminPanelPro
   };
 
   const handleSync = async () => {
-    const baseUrl = normalizeUrl(settings.supabaseUrl);
-    const anonKey = settings.supabaseAnonKey.trim();
-    if (!baseUrl || !anonKey) {
-      setSync({ status: 'error', message: 'Pehle Supabase URL aur Anon/Public API Key configure karo.' });
+    if (!supabase) {
+      setSync({
+        status: 'error',
+        message: 'Supabase client unavailable.',
+      });
       return;
     }
-    setSync({ status: 'syncing', message: 'Local data cloud tables me sync ho raha hai...' });
+
+    setSync({
+      status: 'syncing',
+      message: 'Local data cloud tables me sync ho raha hai...',
+    });
+
     try {
-      const syllabusRows = [{ id: 'field-log-local-syllabus', source: 'field-log', data: syllabus }];
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error('Active Supabase login session nahi mila.');
+      }
+
+      const syllabusRows = [
+        {
+          id: 'master-syllabus',
+          data: syllabus,
+        },
+      ];
+
       const results = await Promise.all([
-        syncSupabaseTable(baseUrl, anonKey, 'dailyLogs', dailyLogs),
-        syncSupabaseTable(baseUrl, anonKey, 'mocks', mocks),
-        syncSupabaseTable(baseUrl, anonKey, 'syllabus', syllabusRows),
+        syncSupabaseTable('dailyLogs', dailyLogs),
+        syncSupabaseTable('mocks', mocks),
+        syncSupabaseTable('syllabus', syllabusRows),
       ]);
-      setSync({ status: 'success', message: results.map(result => result.message).join(' • ') });
+
+      setSync({
+        status: 'success',
+        message:
+          'Cloud sync successful for ' +
+          user.email +
+          ': ' +
+          results.map(result => result.message).join(' • '),
+      });
     } catch (error) {
       console.error('Supabase sync failed:', error);
-      setSync({ status: 'error', message: error instanceof Error ? error.message : 'Cloud sync failed.' });
+      setSync({
+        status: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Cloud sync failed.',
+      });
     }
   };
 
