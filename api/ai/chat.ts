@@ -352,6 +352,12 @@ ${studyContext || "No tracker context was provided."}
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
+          ...(configured?.provider === "OpenRouter"
+            ? {
+                "HTTP-Referer": "https://exam-tracker-navy.vercel.app",
+                "X-Title": "Field Log Exam Tracker",
+              }
+            : {}),
         },
         body: JSON.stringify({
           model,
@@ -365,9 +371,30 @@ ${studyContext || "No tracker context was provided."}
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI Provider Error:", response.status, errorText);
+
+      let providerMessage = "AI provider request failed.";
+      try {
+        const providerPayload = JSON.parse(errorText) as {
+          error?: { message?: string } | string;
+          message?: string;
+        };
+        const nested =
+          providerPayload?.error &&
+          typeof providerPayload.error === "object"
+            ? providerPayload.error.message
+            : typeof providerPayload?.error === "string"
+              ? providerPayload.error
+              : providerPayload?.message;
+        if (nested) providerMessage = String(nested).slice(0, 240);
+      } catch {
+        if (errorText.trim()) {
+          providerMessage = errorText.trim().slice(0, 240);
+        }
+      }
+
       return res.status(502).json({
         success: false,
-        error: "AI provider request failed.",
+        error: `AI provider error (HTTP ${response.status}): ${providerMessage}`,
       });
     }
 
@@ -392,6 +419,14 @@ ${studyContext || "No tracker context was provided."}
     });
   } catch (error) {
     console.error("AI API error:", error);
+
+    if (error instanceof TypeError) {
+      return res.status(502).json({
+        success: false,
+        error: "AI provider endpoint unreachable. Endpoint URL aur provider configuration check karo.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: "Internal AI service error.",
