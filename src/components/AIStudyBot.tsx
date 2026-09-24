@@ -499,10 +499,15 @@ export default function AIStudyBot({
   const [providerConfig, setProviderConfig] = useState<ProviderConfig | null>(
     loadProviderConfig,
   );
+  const [isListening, setIsListening] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceLanguage, setVoiceLanguage] = useState<'hi-IN' | 'en-IN'>('hi-IN');
+  const [voiceSupported, setVoiceSupported] = useState(true);
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
     const nextExam = defaultExam || selectedExam;
@@ -511,6 +516,79 @@ export default function AIStudyBot({
       setExam(nextExam);
     }
   }, [defaultExam, selectedExam]);
+
+  useEffect(() => {
+    const Recognition = getSpeechRecognitionConstructor();
+
+    if (!Recognition) {
+      setVoiceSupported(false);
+      return;
+    }
+
+    setVoiceSupported(true);
+
+    const recognition = new Recognition();
+    recognition.lang = voiceLanguage;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onresult = event => {
+      const finalParts: string[] = [];
+
+      for (
+        let index = event.resultIndex;
+        index < event.results.length;
+        index += 1
+      ) {
+        const result = event.results[index];
+        const transcript = result?.[0]?.transcript || '';
+
+        if (result?.isFinal && transcript) {
+          finalParts.push(transcript);
+        }
+      }
+
+      const finalText = finalParts.join(' ').trim();
+
+      if (finalText) {
+        setInput(previous =>
+          previous.trim()
+            ? previous.trim() + ' ' + finalText
+            : finalText,
+        );
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognition.onresult = null;
+      recognition.onstart = null;
+      recognition.onend = null;
+      recognition.onerror = null;
+
+      try {
+        recognition.stop();
+      } catch {
+        // Ignore stop errors from an idle recognizer.
+      }
+
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+  }, [voiceLanguage]);
 
   useEffect(() => {
     const refreshProviderConfig = () => {
@@ -525,6 +603,113 @@ export default function AIStudyBot({
       window.removeEventListener(ADMIN_SETTINGS_EVENT, refreshProviderConfig);
       window.removeEventListener('storage', refreshProviderConfig);
     };
+  }, []);
+
+  const toggleListening = () => {
+    if (!voiceSupported) {
+      alert('Is browser me voice input supported nahi hai. Chrome/Edge try karo.');
+      return;
+    }
+
+    if (isListening) {
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // Ignore browser stop errors.
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const Recognition = getSpeechRecognitionConstructor();
+
+    if (!Recognition) {
+      setVoiceSupported(false);
+      return;
+    }
+
+    const recognition =
+      recognitionRef.current || new Recognition();
+
+    recognition.lang = voiceLanguage;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onresult = event => {
+      const finalParts: string[] = [];
+
+      for (
+        let index = event.resultIndex;
+        index < event.results.length;
+        index += 1
+      ) {
+        const result = event.results[index];
+        if (result?.isFinal && result?.[0]?.transcript) {
+          finalParts.push(result[0].transcript);
+        }
+      }
+
+      const finalText = finalParts.join(' ').trim();
+
+      if (finalText) {
+        setInput(previous =>
+          previous.trim()
+            ? previous.trim() + ' ' + finalText
+            : finalText,
+        );
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+      requestAnimationFrame(() => inputRef.current?.focus());
+    } catch {
+      setIsListening(false);
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  const speakText = (text: string) => {
+    if (
+      typeof window === 'undefined' ||
+      !('speechSynthesis' in window) ||
+      !text.trim()
+    ) {
+      return;
+    }
+
+    stopSpeaking();
+
+    const utterance = new SpeechSynthesisUtterance(
+      cleanSpeechText(text),
+    );
+    utterance.lang = voiceLanguage;
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  useEffect(() => {
+    return () => stopSpeaking();
   }, []);
 
   useEffect(() => {
