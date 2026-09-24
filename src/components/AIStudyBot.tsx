@@ -879,16 +879,22 @@ export default function AIStudyBot({
         throw new Error(errorMessage);
       }
 
+      const answer = String(
+        (data as Record<string, unknown>).answer,
+      );
+
       setMessages(prev => [
         ...prev.slice(-99),
         {
           id: createId(),
           role: 'assistant',
-          text: String(
-            (data as Record<string, unknown>).answer,
-          ),
+          text: answer,
         },
       ]);
+
+      if (voiceEnabled) {
+        requestAnimationFrame(() => speakText(answer));
+      }
     } catch (error) {
       console.error('AI Study Bot request failed:', error);
 
@@ -1052,9 +1058,23 @@ export default function AIStudyBot({
                     </div>
                   )}
 
-                  <p className="whitespace-pre-wrap text-sm leading-6">
-                    {message.text}
-                  </p>
+                  <div className="flex items-end gap-2">
+                    <p className="whitespace-pre-wrap text-sm leading-6 flex-1">
+                      {message.text}
+                    </p>
+
+                    {message.role === 'assistant' && (
+                      <button
+                        type="button"
+                        onClick={() => speakText(message.text)}
+                        className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-800 hover:text-amber-400"
+                        aria-label="Read answer aloud"
+                        title="Read answer aloud"
+                      >
+                        <Volume2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1165,10 +1185,103 @@ export default function AIStudyBot({
               }}
             />
 
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={sending || !voiceSupported}
+                  className={
+                    'flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition-colors ' +
+                    (isListening
+                      ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                      : 'border-slate-800 bg-slate-950 text-slate-500 hover:border-amber-500 hover:text-amber-300') +
+                    (!voiceSupported
+                      ? ' cursor-not-allowed opacity-50'
+                      : '')
+                  }
+                  aria-label={
+                    isListening
+                      ? 'Stop voice input'
+                      : 'Start voice input'
+                  }
+                  title={
+                    voiceSupported
+                      ? isListening
+                        ? 'Stop listening'
+                        : 'Speak your question'
+                      : 'Voice input unsupported'
+                  }
+                >
+                  {isListening ? (
+                    <MicOff size={13} />
+                  ) : (
+                    <Mic size={13} />
+                  )}
+                  {isListening ? 'Listening…' : 'Speak'}
+                </button>
+
+                <select
+                  value={voiceLanguage}
+                  onChange={event =>
+                    setVoiceLanguage(
+                      event.target.value as 'hi-IN' | 'en-IN',
+                    )
+                  }
+                  className="h-8 rounded-lg border border-slate-800 bg-slate-950 px-2 text-[10px] text-slate-500 outline-none focus:border-amber-500"
+                  aria-label="Voice language"
+                >
+                  <option value="hi-IN">Hindi</option>
+                  <option value="en-IN">English</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (voiceEnabled) {
+                      stopSpeaking();
+                    }
+                    setVoiceEnabled(previous => !previous);
+                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 bg-slate-950 text-slate-500 hover:border-amber-500 hover:text-amber-300"
+                  aria-label={
+                    voiceEnabled
+                      ? 'Disable automatic voice answers'
+                      : 'Enable automatic voice answers'
+                  }
+                  title={
+                    voiceEnabled
+                      ? 'Auto voice ON'
+                      : 'Auto voice OFF'
+                  }
+                >
+                  {voiceEnabled ? (
+                    <Volume2 size={14} />
+                  ) : (
+                    <VolumeX size={14} />
+                  )}
+                </button>
+
+                {isListening && (
+                  <span className="text-[9px] text-rose-300">
+                    बोलो…
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={stopSpeaking}
+                className="text-[9px] text-slate-600 hover:text-slate-300"
+              >
+                Stop voice
+              </button>
+            </div>
+
             <div className="flex items-end gap-2">
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()}
+                onClick={() => fileRef.current?.click()
                 disabled={sending}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-slate-400 transition-colors hover:border-amber-500 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Upload image or PDF"
@@ -1232,6 +1345,8 @@ export default function AIStudyBot({
                 {providerConfig
                   ? providerConfig.provider + ' • Configured'
                   : 'Server AI fallback'}
+                {' • '}
+                {voiceSupported ? 'Voice Ready' : 'Voice Unsupported'}
               </span>
             </div>
           </div>
