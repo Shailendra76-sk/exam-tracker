@@ -1281,7 +1281,7 @@ export default function AIStudyBot({
             <div className="flex items-end gap-2">
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()
+                onClick={() => fileRef.current?.click()}
                 disabled={sending}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-slate-400 transition-colors hover:border-amber-500 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Upload image or PDF"
