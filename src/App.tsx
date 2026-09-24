@@ -467,11 +467,19 @@ export default function App() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      setAuthLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        setSession(data.session);
+        setAuthLoading(false);
+      })
+      .catch(error => {
+        console.error('Supabase session check failed:', error);
+        if (!mounted) return;
+        setSession(null);
+        setAuthLoading(false);
+      });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
