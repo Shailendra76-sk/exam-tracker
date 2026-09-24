@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { DEFAULT_SITE_BRANDING, loadSiteBranding, resetSiteBranding, saveSiteBranding, type SiteBranding } from '../siteBranding';
 
 export const ADMIN_SETTINGS_KEY = 'field-log:v1:admin-settings';
 export const ADMIN_SETTINGS_EVENT = 'field-log:admin-settings-updated';
@@ -200,6 +201,8 @@ async function syncSupabaseTable(
 export default function AdminPanel({ dailyLogs, mocks, syllabus }: AdminPanelProps) {
   const [settings, setSettings] = useState<AdminSettings>(loadSettings);
   const [saved, setSaved] = useState(false);
+  const [branding, setBranding] = useState<SiteBranding>(loadSiteBranding);
+  const [brandingSaved, setBrandingSaved] = useState(false);
   const [showKeys, setShowKeys] = useState({ supabase: false, ai: false });
   const [connection, setConnection] = useState<ConnectionState>('idle');
   const [connectionMessage, setConnectionMessage] = useState('');
@@ -229,6 +232,56 @@ export default function AdminPanel({ dailyLogs, mocks, syllabus }: AdminPanelPro
       updatedAt: new Date().toISOString(),
     }));
     setSaved(false);
+  };
+
+  const handleBrandingSave = () => {
+    try {
+      const next: SiteBranding = {
+        siteName: branding.siteName.trim().slice(0, 80) || DEFAULT_SITE_BRANDING.siteName,
+        tagline: branding.tagline.trim().slice(0, 120) || DEFAULT_SITE_BRANDING.tagline,
+        logoDataUrl: branding.logoDataUrl,
+        footerText: branding.footerText.trim().slice(0, 160) || DEFAULT_SITE_BRANDING.footerText,
+      };
+
+      saveSiteBranding(next);
+      setBranding(next);
+      setBrandingSaved(true);
+    } catch (error) {
+      console.error('Branding save failed:', error);
+      setBrandingSaved(false);
+      alert('Site branding save nahi ho payi.');
+    }
+  };
+
+  const handleLogoUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Sirf image logo upload karein.');
+      return;
+    }
+
+    if (file.size > 1_000_000) {
+      alert('Logo maximum 1 MB ka hona chahiye.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setBranding(previous => ({
+          ...previous,
+          logoDataUrl: reader.result as string,
+        }));
+        setBrandingSaved(false);
+      }
+    };
+    reader.onerror = () => alert('Logo read nahi ho paya.');
+    reader.readAsDataURL(file);
+  };
+
+  const handleBrandingReset = () => {
+    resetSiteBranding();
+    setBranding(loadSiteBranding());
+    setBrandingSaved(true);
   };
 
   const handleSave = () => {
@@ -408,6 +461,158 @@ export default function AdminPanel({ dailyLogs, mocks, syllabus }: AdminPanelPro
           </div>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-800 bg-slate-950/40">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center">
+              <ShieldCheck size={20} className="text-fuchsia-400" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-100">
+                🎨 Site Branding & Identity
+              </h3>
+              <p className="text-xs text-slate-500">
+                Site name, logo, tagline, favicon aur footer Admin se control karo
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+          <div className="space-y-5">
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                Site Name
+              </label>
+              <input
+                value={branding.siteName}
+                onChange={event => {
+                  setBranding(previous => ({
+                    ...previous,
+                    siteName: event.target.value,
+                  }));
+                  setBrandingSaved(false);
+                }}
+                maxLength={80}
+                placeholder="Field Log"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-sm text-slate-200 outline-none focus:border-fuchsia-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                Tagline
+              </label>
+              <input
+                value={branding.tagline}
+                onChange={event => {
+                  setBranding(previous => ({
+                    ...previous,
+                    tagline: event.target.value,
+                  }));
+                  setBrandingSaved(false);
+                }}
+                maxLength={120}
+                placeholder="Written Exam Tracker"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-sm text-slate-200 outline-none focus:border-fuchsia-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                Footer / Copyright
+              </label>
+              <input
+                value={branding.footerText}
+                onChange={event => {
+                  setBranding(previous => ({
+                    ...previous,
+                    footerText: event.target.value,
+                  }));
+                  setBrandingSaved(false);
+                }}
+                maxLength={160}
+                placeholder="© 2026 Field Log • Government Exam Tracker"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-sm text-slate-200 outline-none focus:border-fuchsia-500"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleBrandingSave}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 px-4 py-3 text-sm font-bold text-white"
+              >
+                <ShieldCheck size={17} />
+                {brandingSaved ? 'Branding Saved' : 'Save Branding'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBrandingReset}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-400 hover:border-amber-500 hover:text-amber-300"
+              >
+                Reset to Default
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="text-[10px] uppercase tracking-widest font-bold text-slate-600">
+              Logo / Favicon
+            </div>
+
+            <div className="mt-4 flex items-center justify-center">
+              {branding.logoDataUrl ? (
+                <img
+                  src={branding.logoDataUrl}
+                  alt={branding.siteName + ' logo preview'}
+                  className="h-28 w-28 rounded-2xl border border-slate-700 bg-slate-900 object-contain p-2"
+                />
+              ) : (
+                <div className="flex h-28 w-28 items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-900 text-slate-600">
+                  <span className="text-3xl">✨</span>
+                </div>
+              )}
+            </div>
+
+            <label className="mt-4 flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-xs font-semibold text-slate-300 hover:border-fuchsia-500 hover:text-fuchsia-300">
+              Upload Logo
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={event => {
+                  const file = event.target.files?.[0];
+                  if (file) handleLogoUpload(file);
+                  event.currentTarget.value = '';
+                }}
+              />
+            </label>
+
+            {branding.logoDataUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBranding(previous => ({
+                    ...previous,
+                    logoDataUrl: '',
+                  }));
+                  setBrandingSaved(false);
+                }}
+                className="mt-2 w-full rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/10"
+              >
+                Remove Logo
+              </button>
+            )}
+
+            <p className="mt-3 text-[10px] leading-5 text-slate-600">
+              PNG, JPG, WEBP ya SVG • maximum 1 MB. Uploaded logo sidebar aur browser favicon me use hoga.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-xs text-slate-500">
         <span className="font-semibold text-slate-300">AI routing:</span> Provider key, model aur endpoint <code className="mx-1 text-slate-300">field-log:v1:admin-settings</code> configuration se AIStudyBot ko milte hain. Server-side environment configuration available rehne par woh fallback ke roop me use hoti rahegi.
