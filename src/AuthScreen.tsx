@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Mail, LockKeyhole, LogIn, UserPlus, LogOut, ShieldCheck } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
+import { loadSiteBranding, type SiteBranding } from './siteBranding';
 
 type AuthScreenProps = {
   session: Session | null;
@@ -15,10 +16,22 @@ export default function AuthScreen({ session, onSessionChange }: AuthScreenProps
   const [fullName, setFullName] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [branding, setBranding] = useState<SiteBranding>(loadSiteBranding);
 
   useEffect(() => {
     if (session?.user?.email) setEmail(session.user.email);
   }, [session]);
+  useEffect(() => {
+    const syncBranding = () => setBranding(loadSiteBranding());
+
+    window.addEventListener('storage', syncBranding);
+    window.addEventListener('field-log:branding-updated', syncBranding);
+
+    return () => {
+      window.removeEventListener('storage', syncBranding);
+      window.removeEventListener('field-log:branding-updated', syncBranding);
+    };
+  }, []);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -78,7 +91,7 @@ export default function AuthScreen({ session, onSessionChange }: AuthScreenProps
               <ShieldCheck size={20} className="text-amber-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Signed in</h1>
+              <h1 className="text-xl font-bold">{branding.siteName}</h1>
               <p className="text-xs text-slate-500">{session.user.email}</p>
             </div>
           </div>
@@ -101,16 +114,39 @@ export default function AuthScreen({ session, onSessionChange }: AuthScreenProps
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <div className="mb-5 flex items-center gap-3">
+          {branding.logoDataUrl ? (
+            <img
+              src={branding.logoDataUrl}
+              alt={branding.siteName + ' logo'}
+              className="h-12 w-12 rounded-xl border border-slate-800 bg-slate-950 object-contain p-1"
+            />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-400">
+              <ShieldCheck size={21} />
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="truncate text-sm font-bold text-slate-200">
+              {branding.siteName}
+            </div>
+            <div className="truncate text-xs text-slate-600">
+              {branding.tagline}
+            </div>
+          </div>
+        </div>
+
+
         <div className="mb-6">
           <div className="flex items-center gap-2 text-amber-400 text-xs uppercase font-bold tracking-widest mb-2">
             <ShieldCheck size={15} />
-            Field Log Secure Access
+            {branding.siteName} Secure Access
           </div>
           <h1 className="text-2xl font-bold text-slate-100 font-serif">
-            {mode === 'login' ? 'Sign in to continue' : 'Create your account'}
+            {branding.siteName}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Supabase Auth se protected tracker access.
+            {branding.tagline} • Supabase Auth se protected access.
           </p>
         </div>
 
