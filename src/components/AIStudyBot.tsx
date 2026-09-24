@@ -486,7 +486,6 @@ export default function AIStudyBot({
   const resolvedExam =
     defaultExam || selectedExam || 'All Exams';
 
-  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>(loadMessages);
   const [input, setInput] = useState('');
   const [exam, setExam] = useState(
@@ -724,8 +723,6 @@ export default function AIStudyBot({
   }, [messages]);
 
   useEffect(() => {
-    if (!isOpen) return;
-
     const element = messagesRef.current;
 
     if (!element) return;
@@ -733,11 +730,11 @@ export default function AIStudyBot({
     requestAnimationFrame(() => {
       element.scrollTop = element.scrollHeight;
     });
-  }, [isOpen, messages, sending]);
+  }, [messages, sending]);
 
   const snapshot = useMemo(
     () => buildTrackerSnapshot(),
-    [isOpen, messages.length],
+    [messages.length],
   );
 
   const handleFile = (file: File) => {
@@ -919,9 +916,8 @@ export default function AIStudyBot({
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
-      {isOpen ? (
-        <section
+    <div className="w-full">
+      <section
           role="dialog"
           aria-modal="false"
           aria-label="AI Study Coach"
@@ -953,15 +949,9 @@ export default function AIStudyBot({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                aria-label="Close AI Study Coach"
-                title="Close"
-              >
-                <X size={18} />
-              </button>
+              <div className="shrink-0 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
+                Always Ready
+              </div>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1351,21 +1341,6 @@ export default function AIStudyBot({
             </div>
           </div>
         </section>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="flex h-16 w-16 items-center justify-center rounded-full border border-amber-300/30 bg-gradient-to-tr from-amber-600 to-amber-500 shadow-xl shadow-amber-600/30 transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/40"
-          aria-label="Open AI Study Coach"
-          title="Open AI Study Coach"
-        >
-          <Bot
-            size={28}
-            className="text-white"
-            aria-hidden="true"
-          />
-        </button>
-      )}
     </div>
   );
 }
