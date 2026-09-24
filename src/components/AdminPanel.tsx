@@ -55,7 +55,7 @@ const DEFAULT_SETTINGS: AdminSettings = {
 
 const PROVIDER_DEFAULTS: Record<AIProvider, { model: string; endpoint: string }> = {
   OpenAI: { model: 'gpt-4o-mini', endpoint: 'https://api.openai.com/v1' },
-  OpenRouter: { model: 'meta-llama/llama-3-8b', endpoint: 'https://openrouter.ai/api/v1' },
+  OpenRouter: { model: 'meta-llama/llama-3.1-8b-instruct', endpoint: 'https://openrouter.ai/api/v1' },
   'NVIDIA NIM': { model: 'nvidia/llama-3.1-70b', endpoint: 'https://integrate.api.nvidia.com/v1' },
   'Free Tier API (Groq/Gemini)': { model: 'llama-3.1-8b-instant', endpoint: 'https://api.groq.com/openai/v1' },
 };
@@ -80,9 +80,28 @@ const loadSettings = (): AdminSettings => {
         ? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.trim()
         : 'sb_publishable_IYN7gQW0Isz2BA_BIhu1cg_MdMECRbB';
 
+    const normalizedProvider =
+      isProvider(parsed.aiProvider)
+        ? parsed.aiProvider
+        : DEFAULT_SETTINGS.aiProvider;
+
+    const normalizedModel =
+      normalizedProvider === 'OpenRouter' &&
+      (!parsed.aiModel || parsed.aiModel === 'meta-llama/llama-3-8b')
+        ? PROVIDER_DEFAULTS.OpenRouter.model
+        : typeof parsed.aiModel === 'string' && parsed.aiModel.trim()
+          ? parsed.aiModel.trim()
+          : DEFAULT_SETTINGS.aiModel;
+
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
+      aiProvider: normalizedProvider,
+      aiModel: normalizedModel,
+      aiEndpoint:
+        typeof parsed.aiEndpoint === 'string' && parsed.aiEndpoint.trim()
+          ? parsed.aiEndpoint.trim()
+          : PROVIDER_DEFAULTS[normalizedProvider].endpoint,
       supabaseUrl:
         typeof parsed.supabaseUrl === 'string' && parsed.supabaseUrl.trim()
           ? parsed.supabaseUrl.trim()
