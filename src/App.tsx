@@ -44,6 +44,7 @@ import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import MockTracker, { type MockLog } from './components/MockTracker';
 import './theme.css';
+import { applySiteBranding, BRANDING_EVENT, loadSiteBranding, type SiteBranding } from './siteBranding';
 
 // --- CONSTANTS & COLOR THEMES ---
 const SUBJECT_COLORS: Record<string, string> = { 
@@ -466,6 +467,7 @@ export default function App() {
       ? 'light'
       : 'dark';
   });
+  const [branding, setBranding] = useState<SiteBranding>(loadSiteBranding);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -477,6 +479,22 @@ export default function App() {
       // Theme persistence is best-effort.
     }
   }, [theme]);
+
+  useEffect(() => {
+    applySiteBranding(branding);
+
+    const syncBranding = () => {
+      setBranding(loadSiteBranding());
+    };
+
+    window.addEventListener(BRANDING_EVENT, syncBranding);
+    window.addEventListener('storage', syncBranding);
+
+    return () => {
+      window.removeEventListener(BRANDING_EVENT, syncBranding);
+      window.removeEventListener('storage', syncBranding);
+    };
+  }, [branding]);
 
   useEffect(() => {
     let mounted = true;
@@ -1667,9 +1685,27 @@ export default function App() {
       {/* Left Sidebar Navigation */}
       <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#12181F] border-r border-slate-800 transform transition-transform duration-300 md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
         <div className="pt-20 md:pt-6 px-6 pb-4 border-b border-slate-800/50">
-          <div className="text-[10px] tracking-widest uppercase text-amber-500 font-bold mb-1">WRITTEN EXAM TRACKER</div>
-          <h1 className="font-serif font-bold text-2xl text-white">Field Log</h1>
-          <div className="text-xs text-slate-500 mt-1">SSC · RRB · UP Exams · AOC</div>
+          <div className="flex items-center gap-3">
+            {branding.logoDataUrl ? (
+              <img
+                src={branding.logoDataUrl}
+                alt={branding.siteName + ' logo'}
+                className="h-10 w-10 rounded-xl border border-slate-800 bg-slate-950 object-contain p-1"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-400">
+                <Sparkles size={18} />
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="text-[10px] tracking-widest uppercase text-amber-500 font-bold mb-1">
+                {branding.tagline}
+              </div>
+              <h1 className="truncate font-serif font-bold text-2xl text-white">
+                {branding.siteName}
+              </h1>
+            </div>
+          </div>
         </div>
         
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -1699,6 +1735,10 @@ export default function App() {
             );
           })}
         </nav>
+
+        <div className="px-4 pb-2 text-center text-[9px] text-slate-600">
+          {branding.footerText}
+        </div>
 
         <div className="px-4 pt-4">
           <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
