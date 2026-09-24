@@ -110,9 +110,6 @@ const loadSettings = (): AdminSettings => {
         typeof parsed.supabaseAnonKey === 'string' && parsed.supabaseAnonKey.trim()
           ? parsed.supabaseAnonKey.trim()
           : envKey,
-      aiProvider: isProvider(parsed.aiProvider)
-        ? parsed.aiProvider
-        : DEFAULT_SETTINGS.aiProvider,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -140,13 +137,6 @@ async function testSupabaseConnection() {
   if (error) throw error;
   if (!session?.user) {
     throw new Error('Supabase connected hai, lekin active login session nahi hai.');
-  }
-}
-
-  const { error } = await supabase.auth.getSession();
-
-  if (error) {
-    throw new Error(error.message);
   }
 }
 
