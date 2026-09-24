@@ -537,15 +537,16 @@ export default function App() {
   }, [setDailyLogs, setPyqLogs, setWeakTopics]);
 
   const navItems = [
-    { id: 'dashboard', num: '01', label: 'Dashboard & Analytics', icon: LayoutDashboard },
-    { id: 'daily', num: '02', label: 'Daily Log', icon: PenTool },
-    { id: 'mocks', num: '03', label: 'Mock/Test Tracker', icon: Target },
-    { id: 'pyq', num: '04', label: 'PYQ Practice Log', icon: BookOpen },
-    { id: 'timetable', num: '05', label: 'Interactive Timetable', icon: Calendar },
-    { id: 'weak', num: '06', label: 'Weak Topics Tracker', icon: AlertTriangle },
-    { id: 'syllabus', num: '07', label: 'Syllabus Checklist', icon: ListChecks },
-    { id: 'planner', num: '08', label: 'Smart Study Planner', icon: Target },
-    { id: 'admin', num: '09', label: 'Admin Panel', icon: ShieldCheck },
+    { id: 'ai-bot', num: '01', label: 'AI Study Coach', icon: Bot },
+    { id: 'dashboard', num: '02', label: 'Dashboard & Analytics', icon: LayoutDashboard },
+    { id: 'daily', num: '03', label: 'Daily Log', icon: PenTool },
+    { id: 'mocks', num: '04', label: 'Mock/Test Tracker', icon: Target },
+    { id: 'pyq', num: '05', label: 'PYQ Practice Log', icon: BookOpen },
+    { id: 'timetable', num: '06', label: 'Interactive Timetable', icon: Calendar },
+    { id: 'weak', num: '07', label: 'Weak Topics Tracker', icon: AlertTriangle },
+    { id: 'syllabus', num: '08', label: 'Syllabus Checklist', icon: ListChecks },
+    { id: 'planner', num: '09', label: 'Smart Study Planner', icon: Target },
+    { id: 'admin', num: '10', label: 'Admin Panel', icon: ShieldCheck },
   ];
 
   const resetAllData = () => {
@@ -1703,9 +1704,6 @@ export default function App() {
           {activeTab === 'ai-bot' && <AIStudyBot studyContext={aiStudyContext} defaultExam={selectedExam} />}
         </div>
       </main>
-
-      {/* GLOBAL FLOATING AI STUDY COACH */}
-      <AIStudyBot selectedExam={selectedExam} />
 
       {/* GLOBAL FLOATING TIMER WIDGET */}
       <FloatingTimer />
