@@ -10,6 +10,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 export const ADMIN_SETTINGS_KEY = 'field-log:v1:admin-settings';
 export const ADMIN_SETTINGS_EVENT = 'field-log:admin-settings-updated';
@@ -77,7 +78,7 @@ const loadSettings = (): AdminSettings => {
     const envKey =
       typeof import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY === 'string'
         ? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.trim()
-        : '';
+        : 'sb_publishable_IYN7gQW0Isz2BA_BIhu1cg_MdMECRbB';
 
     return {
       ...DEFAULT_SETTINGS,
@@ -107,34 +108,15 @@ const maskKey = (value: string) => {
   return value.slice(0, 4) + '••••' + value.slice(-4);
 };
 
-async function testSupabaseConnection(settings: AdminSettings) {
-  const baseUrl = normalizeUrl(settings.supabaseUrl);
-  const anonKey = settings.supabaseAnonKey.trim();
-
-  if (!baseUrl || !/^https?:\/\/[^\s/]+/i.test(baseUrl)) {
-    throw new Error('Supabase Project URL invalid hai.');
+async function testSupabaseConnection() {
+  if (!supabase) {
+    throw new Error('Supabase client initialize nahi hua.');
   }
 
-  if (!anonKey) {
-    throw new Error(
-      'Supabase Anon/Public API Key required hai. Vercel me VITE_SUPABASE_PUBLISHABLE_KEY set karo ya key yahan enter karo.',
-    );
-  }
+  const { error } = await supabase.auth.getSession();
 
-  const response = await fetch(baseUrl + '/auth/v1/settings', {
-    method: 'GET',
-    headers: {
-      apikey: anonKey,
-      Authorization: 'Bearer ' + anonKey,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      response.status === 401 || response.status === 403
-        ? 'Supabase URL reachable hai, lekin Anon/Public API Key invalid hai.'
-        : 'Supabase returned HTTP ' + response.status + '.',
-    );
+  if (error) {
+    throw new Error(error.message);
   }
 }
 
@@ -222,13 +204,7 @@ export default function AdminPanel({ dailyLogs, mocks, syllabus }: AdminPanelPro
     setConnection('checking');
     setConnectionMessage('Supabase connection check ho raha hai...');
     try {
-      const latest = loadSettings();
-      const testSettings = {
-        ...latest,
-        supabaseUrl: settings.supabaseUrl.trim() || latest.supabaseUrl,
-        supabaseAnonKey: settings.supabaseAnonKey.trim() || latest.supabaseAnonKey,
-      };
-      await testSupabaseConnection(testSettings);
+      await testSupabaseConnection();
       setConnection('connected');
       setConnectionMessage('Connected Successfully');
     } catch (error) {
