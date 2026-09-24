@@ -1709,7 +1709,7 @@ export default function App() {
           {activeTab === 'syllabus' && renderSyllabus()}
           {activeTab === 'planner' && renderSmartPlanner()}
           {activeTab === 'admin' && <AdminPanel dailyLogs={dailyLogs} mocks={mocks} syllabus={syllabus} />}
-          {activeTab === 'ai-bot' && <AIStudyBot studyContext={aiStudyContext} defaultExam={selectedExam} />}
+          {activeTab === 'ai-bot' && <AIStudyBot defaultExam={selectedExam} />}
         </div>
       </main>
 
