@@ -32,7 +32,9 @@ import {
   XCircle,
   GraduationCap,
   Download,
-  Upload
+  Upload,
+  Sun,
+  Moon
 } from 'lucide-react';
 import MasterSyllabus from './components/MasterSyllabus';
 import AIStudyBot from './components/AIStudyBot';
@@ -41,6 +43,7 @@ import AuthScreen from './AuthScreen';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import MockTracker, { type MockLog } from './components/MockTracker';
+import './theme.css';
 
 // --- CONSTANTS & COLOR THEMES ---
 const SUBJECT_COLORS: Record<string, string> = { 
@@ -457,7 +460,23 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return window.localStorage.getItem('field-log:v1:theme') === 'light'
+      ? 'light'
+      : 'dark';
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.body.dataset.theme = theme;
+    try {
+      window.localStorage.setItem('field-log:v1:theme', theme);
+    } catch {
+      // Theme persistence is best-effort.
+    }
+  }, [theme]);
 
   useEffect(() => {
     let mounted = true;
@@ -1612,7 +1631,31 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-amber-500/30 relative">
+    <div
+      data-theme={theme}
+      className={
+        'field-log-app flex min-h-screen font-sans relative transition-colors duration-200 ' +
+        (theme === 'light'
+          ? 'field-log-light bg-slate-50 text-slate-900 selection:bg-amber-200'
+          : 'bg-slate-950 text-slate-300 selection:bg-amber-500/30')
+      }
+    >
+      <button
+        type="button"
+        onClick={() => setTheme(previous => previous === 'dark' ? 'light' : 'dark')}
+        className={
+          'fixed top-4 right-16 md:right-6 z-[10000] flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 ' +
+          (theme === 'dark'
+            ? 'border-slate-700 bg-slate-900/95 text-amber-400 shadow-black/30'
+            : 'border-slate-300 bg-white/95 text-slate-700 shadow-slate-300/40')
+        }
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      >
+        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
+
+
       {/* Mobile Top Navbar */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#12181F] border-b border-slate-800 z-40 flex items-center justify-between px-4">
         <span className="font-serif font-bold text-slate-100 text-xl">Field Log</span>
