@@ -4,9 +4,13 @@ import {
   Bot,
   FileText,
   Loader2,
+  Mic,
+  MicOff,
   Paperclip,
   Send,
   Sparkles,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 
@@ -61,6 +65,54 @@ type AIStudyBotProps = {
   defaultExam?: string;
   studyContext?: string;
 };
+
+type SpeechRecognitionAlternativeLike = {
+  transcript: string;
+};
+
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  0: SpeechRecognitionAlternativeLike;
+};
+
+type SpeechRecognitionEventLike = Event & {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
+const getSpeechRecognitionConstructor = (): SpeechRecognitionConstructor | null => {
+  if (typeof window === 'undefined') return null;
+
+  const speechWindow = window as SpeechWindow;
+  return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition || null;
+};
+
+const cleanSpeechText = (text: string) =>
+  text
+    .replace(/[*_#]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 
 const ADMIN_SETTINGS_KEY = 'field-log:v1:admin-settings';
 const ADMIN_SETTINGS_EVENT = 'field-log:admin-settings-updated';
