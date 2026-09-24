@@ -517,77 +517,8 @@ export default function AIStudyBot({
   }, [defaultExam, selectedExam]);
 
   useEffect(() => {
-    const Recognition = getSpeechRecognitionConstructor();
-
-    if (!Recognition) {
-      setVoiceSupported(false);
-      return;
-    }
-
-    setVoiceSupported(true);
-
-    const recognition = new Recognition();
-    recognition.lang = voiceLanguage;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => setIsListening(true);
-
-    recognition.onend = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-    };
-
-    recognition.onresult = event => {
-      const finalParts: string[] = [];
-
-      for (
-        let index = event.resultIndex;
-        index < event.results.length;
-        index += 1
-      ) {
-        const result = event.results[index];
-        const transcript = result?.[0]?.transcript || '';
-
-        if (result?.isFinal && transcript) {
-          finalParts.push(transcript);
-        }
-      }
-
-      const finalText = finalParts.join(' ').trim();
-
-      if (finalText) {
-        setInput(previous =>
-          previous.trim()
-            ? previous.trim() + ' ' + finalText
-            : finalText,
-        );
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.onresult = null;
-      recognition.onstart = null;
-      recognition.onend = null;
-      recognition.onerror = null;
-
-      try {
-        recognition.stop();
-      } catch {
-        // Ignore stop errors from an idle recognizer.
-      }
-
-      recognitionRef.current = null;
-      setIsListening(false);
-    };
-  }, [voiceLanguage]);
+    setVoiceSupported(Boolean(getSpeechRecognitionConstructor()));
+  }, []);
 
   useEffect(() => {
     const refreshProviderConfig = () => {
@@ -606,7 +537,9 @@ export default function AIStudyBot({
 
   const toggleListening = () => {
     if (!voiceSupported) {
-      alert('Is browser me voice input supported nahi hai. Chrome/Edge try karo.');
+      alert(
+        'Is browser me voice input supported nahi hai. Chrome/Edge try karo.',
+      );
       return;
     }
 
@@ -616,7 +549,6 @@ export default function AIStudyBot({
       } catch {
         // Ignore browser stop errors.
       }
-      setIsListening(false);
       return;
     }
 
@@ -627,19 +559,20 @@ export default function AIStudyBot({
       return;
     }
 
-    const recognition =
-      recognitionRef.current || new Recognition();
-
+    const recognition = new Recognition();
     recognition.lang = voiceLanguage;
     recognition.continuous = true;
     recognition.interimResults = true;
 
     recognition.onstart = () => setIsListening(true);
+
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
     };
-    recognition.onerror = () => {
+
+    recognition.onerror = event => {
+      console.warn('Speech recognition error:', event);
       setIsListening(false);
       recognitionRef.current = null;
     };
@@ -674,7 +607,9 @@ export default function AIStudyBot({
     try {
       recognition.start();
       requestAnimationFrame(() => inputRef.current?.focus());
-    } catch {
+    } catch (error) {
+      console.warn('Unable to start speech recognition:', error);
+      recognitionRef.current = null;
       setIsListening(false);
     }
   };
