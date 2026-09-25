@@ -43,6 +43,7 @@ import AuthScreen from './AuthScreen';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import MockTracker, { type MockLog } from './components/MockTracker';
+import type { AIAgentAction } from './aiActions';
 import './theme.css';
 import { applySiteBranding, BRANDING_EVENT, loadSiteBranding, type SiteBranding } from './siteBranding';
 
@@ -326,6 +327,59 @@ const FloatingTimer = () => {
 
     return () => clearInterval(interval);
   }, [isRunning, startedAt]);
+  useEffect(() => {
+    const handleTimerAction = (event: Event) => {
+      const customEvent = event as CustomEvent<{ action?: string }>;
+      const action = customEvent.detail?.action;
+
+      if (action === 'start') {
+        setTimer(previous =>
+          previous.isRunning
+            ? previous
+            : {
+                ...previous,
+                isRunning: true,
+                startedAt: Date.now(),
+              },
+        );
+      } else if (action === 'pause') {
+        setTimer(previous => {
+          if (!previous.isRunning || !previous.startedAt) {
+            return previous;
+          }
+
+          const elapsedSinceStart = Math.max(
+            0,
+            Math.floor((Date.now() - previous.startedAt) / 1000),
+          );
+
+          return {
+            time: previous.time + elapsedSinceStart,
+            isRunning: false,
+            startedAt: null,
+          };
+        });
+      } else if (action === 'reset') {
+        setTimer({
+          time: 0,
+          isRunning: false,
+          startedAt: null,
+        });
+      }
+    };
+
+    window.addEventListener(
+      'field-log:timer-action',
+      handleTimerAction,
+    );
+
+    return () =>
+      window.removeEventListener(
+        'field-log:timer-action',
+        handleTimerAction,
+      );
+  }, []);
+
 
   const elapsed = isRunning && startedAt
     ? Math.max(0, Math.floor((now - startedAt) / 1000))
@@ -594,8 +648,13 @@ export default function App() {
     { id: 'admin', num: '10', label: 'Admin Panel', icon: ShieldCheck },
   ];
 
-  const resetAllData = () => {
-    if(window.confirm('Pura tracker data delete ho jayega. Pakka reset karna hai?')) {
+  const resetAllData = (confirmedByUi = false) => {
+    if (
+      confirmedByUi ||
+      window.confirm(
+        'Pura tracker data delete ho jayega. Pakka reset karna hai?',
+      )
+    ) {
       setDailyLogs([]);
       setMocks([]);
       setPyqLogs([]);
@@ -708,6 +767,150 @@ export default function App() {
     }
   };
 
+  const handleAIAgentAction = async (
+    action: AIAgentAction,
+  ): Promise<string> => {
+    const payload = action.payload || {};
+
+    switch (action.type) {
+      case 'navigate': {
+        const tab = String(payload.tab || '');
+        setActiveTab(tab);
+        setIsMobileMenuOpen(false);
+        const nextPath = tab === 'admin' ? '/admin' : '/';
+        if (window.location.pathname !== nextPath) {
+          window.history.pushState({}, '', nextPath);
+        }
+        return 'Opened ' + tab + '.';
+      }
+
+      case 'set_exam': {
+        const exam = String(payload.exam || 'All Exams');
+        setSelectedExam(exam);
+        return 'Target exam set to ' + exam + '.';
+      }
+
+      case 'add_daily_log': {
+        const id = Date.now();
+        const exam = String(payload.exam || selectedExam || 'All Exams');
+        const subject = String(payload.subject || '');
+        const topic = String(payload.topic || '');
+        const date = String(payload.date || new Date().toISOString().slice(0, 10));
+        const hours = Math.max(0.25, Math.min(16, Number(payload.hours) || 0.25));
+        const notes = String(payload.notes || '');
+        setDailyLogs(previous => [...previous, { id, date, exam, subject, topic, hours, notes }]);
+        return String(hours) + 'h ' + subject + ' • ' + topic + ' daily log add ho gaya.';
+      }
+
+      case 'add_pyq_log': {
+        const id = Date.now();
+        const exam = String(payload.exam || selectedExam || 'All Exams');
+        const subject = String(payload.subject || '');
+        const topic = String(payload.topic || '');
+        const date = String(payload.date || new Date().toISOString().slice(0, 10));
+        const sets = Math.max(1, Math.min(100, Math.round(Number(payload.sets) || 1)));
+        const shiftYear = String(payload.shiftYear || '');
+        const notes = String(payload.notes || '');
+        setPyqLogs(previous => [...previous, { id, date, exam, subject, topic, sets, shiftYear, notes }]);
+        return String(sets) + ' PYQ set(s) • ' + subject + ' • ' + topic + ' add ho gaya.';
+      }
+
+      case 'add_mock': {
+        const total = Math.max(1, Math.round(Number(payload.totalScore) || 1));
+        const score = Math.max(0, Math.min(total, Math.round(Number(payload.marksObtained ?? payload.score) || 0)));
+        const accuracy = Math.max(0, Math.min(100, Number(payload.accuracy) || 0));
+        const mock: MockLog = {
+          id: Date.now(),
+          date: String(payload.date || new Date().toISOString().slice(0, 10)),
+          type: String(payload.exam || selectedExam || 'SSC CHSL'),
+          totalScore: score,
+          maths: 0, reasoning: 0, lang: 0, ga: 0,
+          correct: Math.round(accuracy),
+          incorrect: Math.max(0, 100 - Math.round(accuracy)),
+          testName: String(payload.testName || 'AI Added Mock'),
+        };
+        setMocks(previous => [...previous, mock]);
+        return 'Mock add ho gaya: ' + mock.type + ', score ' + score + '/' + total + '.';
+      }
+
+      case 'add_weak_topic': {
+        const exam = String(payload.exam || selectedExam || 'All Exams');
+        const subject = String(payload.subject || '');
+        const topic = String(payload.topic || '');
+        const count = Math.max(1, Math.min(999, Math.round(Number(payload.count) || 1)));
+        const lastDate = String(payload.lastDate || new Date().toISOString().slice(0, 10));
+        setWeakTopics(previous => {
+          const existing = previous.find(item => item.exam === exam && item.subject === subject && item.topic.toLowerCase() === topic.toLowerCase());
+          if (existing) {
+            return previous.map(item => item.id === existing.id ? { ...item, count: item.count + count, lastDate } : item);
+          }
+          return [...previous, { id: Date.now(), exam, subject, topic, count, lastDate }];
+        });
+        return 'Weak topic ' + topic + ' marked ' + count + 'x.';
+      }
+
+      case 'set_next_plan': {
+        setNextPlan(String(payload.plan || '').trim());
+        return 'Next study plan updated.';
+      }
+
+      case 'set_planner_goal': {
+        const hours = Math.max(1, Math.min(16, Number(payload.hours) || 1));
+        setPlannerGoalHours(hours);
+        return 'Daily planner goal ' + hours + 'h set kar diya.';
+      }
+
+      case 'set_planner_task': {
+        const key = String(payload.key || '');
+        if (!key) throw new Error('Planner task key missing.');
+        setPlannerDone(previous => ({ ...previous, [key]: Boolean(payload.done) }));
+        return Boolean(payload.done) ? 'Planner task completed.' : 'Planner task reopened.';
+      }
+
+      case 'set_syllabus_topic': {
+        const subject = String(payload.subject || '');
+        const topicId = String(payload.topicId || '');
+        const completed = Boolean(payload.completed);
+        let changed = false;
+        setSyllabus(previous => {
+          const topics = previous[subject];
+          if (!Array.isArray(topics)) return previous;
+          const nextTopics = topics.map(topic => {
+            if (topic.id !== topicId) return topic;
+            changed = true;
+            return { ...topic, completed };
+          });
+          return changed ? { ...previous, [subject]: nextTopics } : previous;
+        });
+        return changed ? subject + ' • ' + topicId + ' updated.' : 'Syllabus topic nahi mila.';
+      }
+
+      case 'set_theme': {
+        const theme = String(payload.theme) === 'light' ? 'light' : 'dark';
+        setTheme(theme);
+        return (theme === 'light' ? 'Light' : 'Dark') + ' mode active kar diya.';
+      }
+
+      case 'timer': {
+        const timerAction = String(payload.action || '');
+        window.dispatchEvent(new CustomEvent('field-log:timer-action', { detail: { action: timerAction } }));
+        return 'Study timer ' + timerAction + ' command execute ho gaya.';
+      }
+
+      case 'export_backup': {
+        exportBackup();
+        return 'Tracker backup download start ho gaya.';
+      }
+
+      case 'reset_all_data': {
+        resetAllData(true);
+        return 'All tracker data reset kar diya gaya.';
+      }
+
+      default:
+        throw new Error('Unsupported AI action.');
+    }
+  };
   // --- 1. DASHBOARD & ANALYTICS ---
   const renderDashboard = () => {
     const matchesExam = (exam?: string) =>
@@ -1792,7 +1995,12 @@ export default function App() {
           {activeTab === 'syllabus' && renderSyllabus()}
           {activeTab === 'planner' && renderSmartPlanner()}
           {activeTab === 'admin' && <AdminPanel dailyLogs={dailyLogs} mocks={mocks} syllabus={syllabus} />}
-          {activeTab === 'ai-bot' && <AIStudyBot defaultExam={selectedExam} />}
+          {activeTab === 'ai-bot' && (
+            <AIStudyBot
+              defaultExam={selectedExam}
+              onAction={handleAIAgentAction}
+            />
+          )}
         </div>
       </main>
 
