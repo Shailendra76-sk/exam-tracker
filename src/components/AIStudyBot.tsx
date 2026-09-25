@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bot, FileText, Loader2, Mic, MicOff, Paperclip, Send, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { validateAIAgentAction, type AIAgentAction } from '../aiActions';
 
 type StudyMode = 'Ask' | 'Learn' | 'Practice' | 'Test';
 type MessageRole = 'user' | 'assistant';
@@ -7,7 +8,7 @@ type MessageRole = 'user' | 'assistant';
 type Message = { id: string; role: MessageRole; text: string; attachmentName?: string; };
 type ProviderConfig = { provider: string; apiKey: string; model: string; endpoint: string; };
 
-type AIStudyBotProps = { apiEndpoint?: string; selectedExam?: string; defaultExam?: string; studyContext?: string; };
+type AIStudyBotProps = { apiEndpoint?: string; selectedExam?: string; defaultExam?: string; studyContext?: string; onAction?: (action: AIAgentAction) => Promise<string>; };
 
 type RecognitionAlternative = { transcript: string; };
 type RecognitionResult = { isFinal: boolean; 0: RecognitionAlternative; };
@@ -82,7 +83,7 @@ const readTrackerContext = (extra?: string) => {
   }
 };
 
-export default function AIStudyBot({ apiEndpoint = '/api/ai/chat', selectedExam = 'All Exams', defaultExam, studyContext }: AIStudyBotProps) {
+export default function AIStudyBot({ apiEndpoint = '/api/ai/chat', selectedExam = 'All Exams', defaultExam, studyContext, onAction }: AIStudyBotProps) {
   const [messages, setMessages] = useState<Message[]>(loadMessages);
   const [input, setInput] = useState('');
   const [exam, setExam] = useState(defaultExam || selectedExam || 'All Exams');
@@ -92,6 +93,7 @@ export default function AIStudyBot({ apiEndpoint = '/api/ai/chat', selectedExam 
   const [sending, setSending] = useState(false);
   const [providerConfig, setProviderConfig] = useState<ProviderConfig | null>(loadProviderConfig);
   const [listening, setListening] = useState(false);
+  const [pendingActions, setPendingActions] = useState<AIAgentAction[]>([]);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [voiceLanguage, setVoiceLanguage] = useState<'hi-IN' | 'en-IN'>('hi-IN');
@@ -197,6 +199,7 @@ export default function AIStudyBot({ apiEndpoint = '/api/ai/chat', selectedExam 
         studyContext: readTrackerContext(studyContext),
         messages: history,
         providerConfig: providerConfig || undefined,
+        enableActions: Boolean(onAction),
       };
       if (file) body.attachment = { name: file.name, type: file.type, dataUrl: await fileToDataUrl(file) };
 
@@ -204,7 +207,55 @@ export default function AIStudyBot({ apiEndpoint = '/api/ai/chat', selectedExam 
       const data = await response.json().catch(() => ({})) as Record<string, unknown>;
       if (!response.ok || data.success !== true || typeof data.answer !== 'string') throw new Error(typeof data.error === 'string' ? data.error : 'AI service se response nahi mila.');
       const answer = String(data.answer);
-      setMessages(previous => [...previous.slice(-99), { id: makeId(), role: 'assistant', text: answer }]);
+      const validActions = Array.isArray(data.actions)
+        ? data.actions
+            .map(item => validateAIAgentAction(item))
+            .filter((item): item is AIAgentAction => Boolean(item))
+        : [];
+
+      const immediateActions = validActions.filter(
+        action => !action.requiresConfirmation,
+      );
+      const confirmableActions = validActions.filter(
+        action => action.requiresConfirmation,
+      );
+
+      const actionResults: string[] = [];
+
+      if (onAction) {
+        for (const action of immediateActions) {
+          try {
+            const result = await onAction(action);
+            if (result) actionResults.push('✅ ' + result);
+          } catch (error) {
+            actionResults.push(
+              '⚠️ ' +
+                (error instanceof Error
+                  ? error.message
+                  : 'Action execute nahi ho paya.'),
+            );
+          }
+        }
+      }
+
+      if (confirmableActions.length > 0) {
+        setPendingActions(previous =>
+          [...previous, ...confirmableActions].slice(-6),
+        );
+      }
+
+      const finalAnswer = actionResults.length
+        ? answer + '\n\n' + actionResults.join('\n')
+        : answer;
+
+      setMessages(previous => [
+        ...previous.slice(-99),
+        {
+          id: makeId(),
+          role: 'assistant',
+          text: finalAnswer,
+        },
+      ]);
       if (autoSpeak) requestAnimationFrame(() => speak(answer));
     } catch (error) {
       setMessages(previous => [...previous.slice(-99), { id: makeId(), role: 'assistant', text: error instanceof Error ? error.message : 'AI request failed.' }]);
@@ -239,6 +290,93 @@ export default function AIStudyBot({ apiEndpoint = '/api/ai/chat', selectedExam 
           </div>
 
           <div className="border-t border-slate-800 bg-slate-950/50 p-4">
+            {pendingActions.length > 0 && (
+              <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                  AI Action Confirmation
+                </div>
+                <div className="mt-2 space-y-2">
+                  {pendingActions.map((action, index) => {
+                    const label =
+                      action.type === 'reset_all_data'
+                        ? 'Reset all tracker data'
+                        : action.type === 'export_backup'
+                          ? 'Create tracker backup'
+                          : 'Execute ' + action.type;
+
+                    return (
+                      <div
+                        key={(action.id || action.type) + '-' + index}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2"
+                      >
+                        <span className="text-xs text-slate-300">
+                          {label}
+                        </span>
+
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            disabled={!onAction}
+                            onClick={async () => {
+                              if (!onAction) return;
+
+                              try {
+                                const result = await onAction(action);
+                                setMessages(previous => [
+                                  ...previous,
+                                  {
+                                    id: makeId(),
+                                    role: 'assistant',
+                                    text:
+                                      result || 'Action execute ho gaya.',
+                                  },
+                                ]);
+                              } catch (error) {
+                                setMessages(previous => [
+                                  ...previous,
+                                  {
+                                    id: makeId(),
+                                    role: 'assistant',
+                                    text:
+                                      error instanceof Error
+                                        ? '⚠️ ' + error.message
+                                        : '⚠️ Action execute nahi ho paya.',
+                                  },
+                                ]);
+                              }
+
+                              setPendingActions(previous =>
+                                previous.filter(
+                                  (_, itemIndex) => itemIndex !== index,
+                                ),
+                              );
+                            }}
+                            className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
+                          >
+                            Confirm
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPendingActions(previous =>
+                                previous.filter(
+                                  (_, itemIndex) => itemIndex !== index,
+                                ),
+                              )
+                            }
+                            className="rounded-md border border-slate-700 px-2.5 py-1.5 text-[10px] text-slate-500 hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <button type="button" onClick={toggleListening} disabled={!voiceSupported || sending} className={'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ' + (listening ? 'border-rose-500/40 bg-rose-500/10 text-rose-300' : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-amber-500 hover:text-amber-300')}>{listening ? <MicOff size={14} /> : <Mic size={14} />}{listening ? 'Listening…' : 'Speak'}</button>
               <select value={voiceLanguage} onChange={e => setVoiceLanguage(e.target.value as 'hi-IN' | 'en-IN')} className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-500 outline-none focus:border-amber-500"><option value="hi-IN">Hindi Voice</option><option value="en-IN">English Voice</option></select>
