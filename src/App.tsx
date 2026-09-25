@@ -871,18 +871,26 @@ export default function App() {
         const subject = String(payload.subject || '');
         const topicId = String(payload.topicId || '');
         const completed = Boolean(payload.completed);
-        let changed = false;
-        setSyllabus(previous => {
-          const topics = previous[subject];
-          if (!Array.isArray(topics)) return previous;
-          const nextTopics = topics.map(topic => {
-            if (topic.id !== topicId) return topic;
-            changed = true;
-            return { ...topic, completed };
-          });
-          return changed ? { ...previous, [subject]: nextTopics } : previous;
-        });
-        return changed ? subject + ' • ' + topicId + ' updated.' : 'Syllabus topic nahi mila.';
+        const topics = syllabus[subject];
+        if (!Array.isArray(topics)) {
+          return 'Syllabus subject nahi mila.';
+        }
+
+        const exists = topics.some(topic => topic.id === topicId);
+        if (!exists) {
+          return 'Syllabus topic nahi mila.';
+        }
+
+        setSyllabus(previous => ({
+          ...previous,
+          [subject]: (previous[subject] || []).map(topic =>
+            topic.id === topicId
+              ? { ...topic, completed }
+              : topic,
+          ),
+        }));
+
+        return subject + ' • ' + topicId + ' updated.';
       }
 
       case 'set_theme': {
