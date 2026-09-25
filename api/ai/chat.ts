@@ -66,6 +66,7 @@ const ACTION_TYPES = new Set([
   "set_planner_task",
   "set_syllabus_topic",
   "set_theme",
+  "timer",
   "export_backup",
   "reset_all_data",
 ]);
@@ -469,13 +470,16 @@ Rules:
 
 ACTION SCHEMA:
 When action mode is enabled, return ONLY this JSON object:
-{"answer":"your normal answer","actions":[{"type":"navigate | set_exam | add_daily_log | add_pyq_log | add_mock | add_weak_topic | set_next_plan | set_planner_goal | set_planner_task | set_syllabus_topic | set_theme | export_backup | reset_all_data","payload":{}}]}
+{"answer":"your normal answer","actions":[{"type":"navigate | set_exam | add_daily_log | add_pyq_log | add_mock | add_weak_topic | set_next_plan | set_planner_goal | set_planner_task | set_syllabus_topic | set_theme | timer | export_backup | reset_all_data","payload":{}}]}
 
 Examples:
 - "Aaj 2 ghante Maths Percentage padha" -> add_daily_log with subject=Maths, topic=Percentage, hours=2.
 - "CHSL select karo" -> set_exam with exam=SSC CHSL.
 - "Syllabus me m3 complete mark karo" -> set_syllabus_topic with subject=Maths, topicId=m3, completed=true.
 - "Light mode kar do" -> set_theme with theme=light.
+- "Timer start karo" -> timer with action=start.
+- "Timer pause karo" -> timer with action=pause.
+- "Timer reset karo" -> timer with action=reset.
 - "Planner goal 6 hours karo" -> set_planner_goal with hours=6.
 - "Dashboard kholo" -> navigate with tab=dashboard.
 - "Backup download karo" -> export_backup.
