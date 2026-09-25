@@ -10,6 +10,7 @@ export type AIAgentActionType =
   | 'set_planner_task'
   | 'set_syllabus_topic'
   | 'set_theme'
+  | 'timer'
   | 'export_backup'
   | 'reset_all_data';
 
@@ -87,6 +88,7 @@ export function validateAIAgentAction(
       'set_planner_task',
       'set_syllabus_topic',
       'set_theme',
+      'timer',
       'export_backup',
       'reset_all_data',
     ] as string[]).includes(type)
@@ -130,6 +132,15 @@ export function validateAIAgentAction(
       return null;
     }
     safe.payload = { theme };
+    return safe;
+  }
+
+  if (type === 'timer') {
+    const timerAction = stringValue(payload.action, 20);
+    if (!['start', 'pause', 'reset'].includes(timerAction)) {
+      return null;
+    }
+    safe.payload = { action: timerAction };
     return safe;
   }
 
